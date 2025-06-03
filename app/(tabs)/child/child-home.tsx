@@ -102,7 +102,7 @@ export default function ChildHomeScreen() {
             <View style={styles.separator} />
 
             <Text style={styles.popupSubTitle}>
-              왜 기분이 {selectedEmotion ? selectedEmotion.replace(/요$/, '') : '○○'}?
+              왜 기분이 {selectedEmotion ? selectedEmotion.replace(/요$/, '') : '00야'}?
             </Text>
 
             <TextInput

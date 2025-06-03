@@ -1,10 +1,20 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function ParentLoginScreen() {
   const router = useRouter();
-  
+  const [userId, setUserId] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleLogin = () => {
+    if (userId === '123456' && password === '123456') {
+      router.push('/parent/parent-home');
+    } else {
+      Alert.alert('로그인 실패', '아이디 또는 비밀번호가 올바르지 않습니다.');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.logo}>
@@ -22,12 +32,19 @@ export default function ParentLoginScreen() {
         <TextInput 
           placeholder="아이디" 
           style={[styles.input, { fontFamily: 'Jua', textAlignVertical: 'top' }]} 
-          placeholderTextColor="#aaa" />
+          placeholderTextColor="#aaa"
+          value={userId}
+          onChangeText={setUserId}
+        />
         <TextInput 
           placeholder="비밀번호" 
           style={[styles.input, { fontFamily: 'Jua', textAlignVertical: 'top' }]} 
-          placeholderTextColor="#aaa" secureTextEntry />
-        <TouchableOpacity style={styles.button}>
+          placeholderTextColor="#aaa"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
           <Text style={styles.buttonText}>로그인</Text>
         </TouchableOpacity>
       </View>
@@ -55,10 +72,10 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   logoHighlight: {
-    color: '#FF9D00', // 진한 주황
+    color: '#FF9D00',
   },
   logoLight: {
-    color: '#FFC36C', // 밝은 주황
+    color: '#FFC36C',
   },
   labelBox: {
     backgroundColor: '#fde2cf',
