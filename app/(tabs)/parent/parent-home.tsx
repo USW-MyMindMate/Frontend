@@ -1,15 +1,25 @@
 import React, { useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const children = ['이서연', '김하윤', '박지후'];
 
 export default function ParentHome() {
   const [selectedChild, setSelectedChild] = useState(children[0]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showGraphPopup, setShowGraphPopup] = useState(false); // 그래프 팝업 상태 관리
 
+  // 감정 기록 배열
   const emotionLogs = [
     { time: '오전 10:00', emotion: '슬픔', note: '밥이 맛없었다' },
     { time: '오후 12:00', emotion: '행복', note: '' },
+  ];
+
+  // 최근 감정표현 5개 배열
+  const recentEmotions = [
+    { emotion: '좋아요', color: '#FFFF00', count: 3 },
+    { emotion: '슬픔', color: '#0000FF', count: 1 },
+    { emotion: '화나요', color: '#FF0000', count: 2 },
+    { emotion: '아파요', color: '#000000', count: 2 },
   ];
 
   return (
@@ -23,6 +33,7 @@ export default function ParentHome() {
         <Text style={styles.logoLight}>ate</Text>
       </Text>
 
+      {/* 루틴 박스 */}
       <View style={styles.todoBox}>
         <View style={styles.routineHeader}>
           <TouchableOpacity
@@ -64,6 +75,7 @@ export default function ParentHome() {
         </TouchableOpacity>
       </View>
 
+      {/* 감정 기록 박스 */}
       <View style={styles.tryBox}>
         <View style={styles.logList}>
           {emotionLogs.map((log, index) => (
@@ -72,11 +84,53 @@ export default function ParentHome() {
             </Text>
           ))}
         </View>
-        <TouchableOpacity style={styles.graphButton}>
+        <TouchableOpacity
+          style={styles.graphButton}
+          onPress={() => setShowGraphPopup(true)} // 그래프 팝업 열기
+        >
           <Text style={styles.buttonTextLarge}>그래프</Text>
         </TouchableOpacity>
       </View>
 
+      {/* 그래프 팝업 */}
+      <Modal
+        transparent={true}
+        visible={showGraphPopup}
+        animationType="slide"
+        onRequestClose={() => setShowGraphPopup(false)} // 팝업 닫기
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.graphTitle}>최근 감정표현 5개</Text>
+            <View style={styles.recentEmotionsContainer}>
+              {recentEmotions.map((emotion, index) => (
+                <View key={index} style={styles.recentEmotionItem}>
+                  <Text style={{ fontFamily: 'Jua', color: '#333', fontSize: 18, flex: 1 }}>
+                    {emotion.emotion}
+                  </Text>
+                  <View
+                    style={[
+                      styles.graphBar,
+                      { backgroundColor: emotion.color, width: emotion.count * 40 },
+                    ]}
+                  />
+                  <Text style={{ fontFamily: 'Jua', color: '#333', fontSize: 16, marginLeft: 10 }}>
+                    {emotion.count}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowGraphPopup(false)} // 팝업 닫기
+            >
+              <Text style={styles.closeButtonText}>닫기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 홈 버튼 + 마이페이지 */}
       <View style={styles.bottomButtons}>
         <TouchableOpacity style={styles.homeButton}>
           <Image
@@ -166,11 +220,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 10,
     zIndex: 10,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
   },
   dropdownItemContainer: {
     paddingVertical: 6,
@@ -247,5 +297,51 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     bottom: 50,
+  },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    width: '80%',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    alignItems: 'center',
+  },
+  graphTitle: {
+    fontSize: 22,
+    marginBottom: 20,
+    fontFamily: 'Jua',
+  },
+  recentEmotionsContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  recentEmotionItem: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginVertical: 5,
+    fontFamily: 'Jua',
+    marginBottom:10,
+  },
+  graphBar: {
+    height: 20,
+    marginRight: 10,
+  },
+  closeButton: {
+    backgroundColor: '#FF9D00',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  closeButtonText: {
+    fontFamily: 'Jua',
+    fontSize: 18,
+    color: '#fff',  
   },
 });
