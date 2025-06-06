@@ -1,20 +1,54 @@
+import CustomDropdown from '@/components/CustomDropdown';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 const children = ['이서연', '김하윤', '박지후'];
 
 export default function ParentHome() {
   const [selectedChild, setSelectedChild] = useState(children[0]);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [showGraphPopup, setShowGraphPopup] = useState(false); // 그래프 팝업 상태 관리
+  const [selectedChildIndex, setSelectedChildIndex] = useState(0);
 
-  // 감정 기록 배열
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showGraphPopup, setShowGraphPopup] = useState(false);
+  const [isEditPage, setIsEditPage] = useState(false);
+  const [routineList, setRoutineList] = useState<string[]>([
+    '할 일 1',
+    '할 일 2',
+    '할 일 3',
+    '할 일 4',
+  ]);
+
+  const addRoutine = () => {
+    setRoutineList([...routineList, `할 일 ${routineList.length + 1}`]);
+  };
+
+  const updateRoutine = (index: number, value: string) => {
+    const updated = [...routineList];
+    updated[index] = value;
+    setRoutineList(updated);
+  };
+
+  const removeRoutine = (index: number) => {
+    const updated = [...routineList];
+    updated.splice(index, 1);
+    setRoutineList(updated);
+  };
+
   const emotionLogs = [
     { time: '오전 10:00', emotion: '슬픔', note: '밥이 맛없었다' },
     { time: '오후 12:00', emotion: '행복', note: '' },
   ];
 
-  // 최근 감정표현 5개 배열
   const recentEmotions = [
     { emotion: '좋아요', color: '#FFFF00', count: 3 },
     { emotion: '슬픔', color: '#0000FF', count: 1 },
@@ -22,6 +56,60 @@ export default function ParentHome() {
     { emotion: '아파요', color: '#000000', count: 2 },
   ];
 
+  const router = useRouter();
+
+  if (isEditPage) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.logo}>
+          <Text style={styles.logoHighlight}>M</Text>
+          <Text style={styles.logoLight}>y</Text>
+          <Text style={styles.logoHighlight}>M</Text>
+          <Text style={styles.logoLight}>ind</Text>
+          <Text style={styles.logoHighlight}>M</Text>
+          <Text style={styles.logoLight}>ate</Text>
+        </Text>
+
+        <View style={styles.editBox}>
+          <View style={styles.routineHeader}>
+            <CustomDropdown
+              options={children}
+              selectedIndex={selectedChildIndex}
+              onSelect={(index) => setSelectedChildIndex(index)}
+            />
+            <Text style={styles.routineTitle}>{`'s routine`}</Text>
+          </View>
+
+          {routineList.map((item, index) => (
+            <View key={index} style={styles.editRoutineRow}>
+              <TextInput
+                style={styles.editInputBox}
+                value={item}
+                onChangeText={(text) => updateRoutine(index, text)}
+              />
+              <TouchableOpacity
+                onPress={() => removeRoutine(index)}
+                style={styles.removeButton}
+              >
+                <Text style={styles.removeText}>X</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+
+          <TouchableOpacity onPress={addRoutine} style={styles.addButton}>
+            <Text style={styles.addText}>+</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.editDoneButton}
+          onPress={() => setIsEditPage(false)}
+        >
+          <Text style={styles.buttonTextLarge}>편집 완료</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
   return (
     <View style={styles.container}>
       <Text style={styles.logo}>
@@ -33,17 +121,13 @@ export default function ParentHome() {
         <Text style={styles.logoLight}>ate</Text>
       </Text>
 
-      {/* 루틴 박스 */}
       <View style={styles.todoBox}>
         <View style={styles.routineHeader}>
-          <TouchableOpacity
-            onPress={() => setDropdownOpen(!dropdownOpen)}
-            style={styles.childSelector}
-          >
-            <Text style={styles.kidName}>
-              {selectedChild} <Text style={styles.arrow}>▼</Text>
-            </Text>
-          </TouchableOpacity>
+          <CustomDropdown
+            options={children}
+            selectedIndex={selectedChildIndex}
+            onSelect={(index) => setSelectedChildIndex(index)}
+          />
           <Text style={styles.routineTitle}>{`'s routine`}</Text>
         </View>
 
@@ -64,18 +148,26 @@ export default function ParentHome() {
           </View>
         )}
 
-        <View style={styles.routineListVertical}>
-          {[...Array(4)].map((_, index) => (
-            <View key={index} style={styles.checkbox}></View>
+        <ScrollView
+          style={{ maxHeight: 180 }}
+          contentContainerStyle={styles.routineListVertical}
+        >
+          {routineList.map((item, index) => (
+            <View key={index} style={styles.routineItemRow}>
+              <View style={styles.checkbox} />
+              <Text style={styles.boxTitle}>{item}</Text>
+            </View>
           ))}
-        </View>
+        </ScrollView>
 
-        <TouchableOpacity style={styles.editButton}>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => setIsEditPage(true)}
+        >
           <Text style={styles.buttonTextLarge}>루틴 편집</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 감정 기록 박스 */}
       <View style={styles.tryBox}>
         <View style={styles.logList}>
           {emotionLogs.map((log, index) => (
@@ -86,18 +178,17 @@ export default function ParentHome() {
         </View>
         <TouchableOpacity
           style={styles.graphButton}
-          onPress={() => setShowGraphPopup(true)} // 그래프 팝업 열기
+          onPress={() => setShowGraphPopup(true)}
         >
           <Text style={styles.buttonTextLarge}>그래프</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 그래프 팝업 */}
       <Modal
         transparent={true}
         visible={showGraphPopup}
         animationType="slide"
-        onRequestClose={() => setShowGraphPopup(false)} // 팝업 닫기
+        onRequestClose={() => setShowGraphPopup(false)}
       >
         <View style={styles.modalBackground}>
           <View style={styles.modalContainer}>
@@ -105,16 +196,33 @@ export default function ParentHome() {
             <View style={styles.recentEmotionsContainer}>
               {recentEmotions.map((emotion, index) => (
                 <View key={index} style={styles.recentEmotionItem}>
-                  <Text style={{ fontFamily: 'Jua', color: '#333', fontSize: 18, flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: 'Jua',
+                      color: '#333',
+                      fontSize: 18,
+                      flex: 1,
+                    }}
+                  >
                     {emotion.emotion}
                   </Text>
                   <View
                     style={[
                       styles.graphBar,
-                      { backgroundColor: emotion.color, width: emotion.count * 40 },
+                      {
+                        backgroundColor: emotion.color,
+                        width: emotion.count * 40,
+                      },
                     ]}
                   />
-                  <Text style={{ fontFamily: 'Jua', color: '#333', fontSize: 16, marginLeft: 10 }}>
+                  <Text
+                    style={{
+                      fontFamily: 'Jua',
+                      color: '#333',
+                      fontSize: 16,
+                      marginLeft: 10,
+                    }}
+                  >
                     {emotion.count}
                   </Text>
                 </View>
@@ -122,7 +230,7 @@ export default function ParentHome() {
             </View>
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={() => setShowGraphPopup(false)} // 팝업 닫기
+              onPress={() => setShowGraphPopup(false)}
             >
               <Text style={styles.closeButtonText}>닫기</Text>
             </TouchableOpacity>
@@ -130,16 +238,17 @@ export default function ParentHome() {
         </View>
       </Modal>
 
-      {/* 홈 버튼 + 마이페이지 */}
       <View style={styles.bottomButtons}>
         <TouchableOpacity style={styles.homeButton}>
           <Image
             source={require('@/assets/images/home.png')}
-            style={styles.homeIcon}
-            resizeMode="contain"
+            style={{ width: 60, height: 60, marginTop: 30 }}
           />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.pageButton}>
+        <TouchableOpacity
+          style={styles.pageButton}
+          onPress={() => router.push('/parent/parent-myPage')}
+        >
           <Text style={styles.buttonTextLarge}>마이페이지</Text>
         </TouchableOpacity>
       </View>
@@ -183,9 +292,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     position: 'relative',
   },
-  logList: {
-    alignItems: 'flex-start',
-  },
   routineHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -200,11 +306,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
   },
-  kidName: {
-    fontFamily: 'Jua',
-    fontSize: 22,
-    color: '#333',
-  },
+  kidName: { fontFamily: 'Jua', fontSize: 22, color: '#333' },
   arrow: { color: '#333' },
   routineTitle: {
     fontFamily: 'Jua',
@@ -220,29 +322,19 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 10,
     zIndex: 10,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
+    elevation: 5,
   },
-  dropdownItemContainer: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  dropdownItem: {
-    fontFamily: 'Jua',
-    fontSize: 18,
-    color: '#000',
-  },
+  dropdownItemContainer: { paddingVertical: 6, paddingHorizontal: 12 },
+  dropdownItem: { fontFamily: 'Jua', fontSize: 18, color: '#000' },
   boxTitle: {
     fontFamily: 'Jua',
     fontSize: 18,
     color: '#555',
-    marginBottom: 10,
-    textAlign: 'left',
+    textAlignVertical: 'center',
+    marginLeft: 12,
+    lineHeight: 30,
   },
-  routineListVertical: {
-    flexDirection: 'column',
-    gap: 12,
-    marginTop: 10,
-  },
+  routineListVertical: { flexDirection: 'column', gap: 12, marginTop: 10 },
   checkbox: {
     width: 30,
     height: 30,
@@ -258,6 +350,15 @@ const styles = StyleSheet.create({
     bottom: 10,
     right: 10,
   },
+  editDoneButton: {
+    backgroundColor: '#ffd699',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    marginTop: 30,
+    alignSelf: 'center',
+    marginBottom: 40,
+  },
   graphButton: {
     backgroundColor: '#FFD4AA',
     paddingVertical: 10,
@@ -267,11 +368,7 @@ const styles = StyleSheet.create({
     bottom: 10,
     right: 10,
   },
-  buttonTextLarge: {
-    fontFamily: 'Jua',
-    color: '#444',
-    fontSize: 18,
-  },
+  buttonTextLarge: { fontFamily: 'Jua', color: '#444', fontSize: 18 },
   bottomButtons: {
     width: '100%',
     alignItems: 'center',
@@ -285,10 +382,7 @@ const styles = StyleSheet.create({
     bottom: 30,
     transform: [{ translateX: -40 }],
   },
-  homeIcon: {
-    width: 80,
-    height: 80,
-  },
+  homeIcon: { width: 80, height: 80 },
   pageButton: {
     position: 'absolute',
     right: 40,
@@ -311,27 +405,17 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
   },
-  graphTitle: {
-    fontSize: 22,
-    marginBottom: 20,
-    fontFamily: 'Jua',
-  },
-  recentEmotionsContainer: {
-    width: '100%',
-    marginBottom: 20,
-  },
+  graphTitle: { fontSize: 22, marginBottom: 20, fontFamily: 'Jua' },
+  recentEmotionsContainer: { width: '100%', marginBottom: 20 },
   recentEmotionItem: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'center',
     marginVertical: 5,
     fontFamily: 'Jua',
-    marginBottom:10,
+    marginBottom: 10,
   },
-  graphBar: {
-    height: 20,
-    marginRight: 10,
-  },
+  graphBar: { height: 20, marginRight: 10 },
   closeButton: {
     backgroundColor: '#FF9D00',
     paddingVertical: 12,
@@ -339,9 +423,58 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 10,
   },
-  closeButtonText: {
+  closeButtonText: { fontFamily: 'Jua', fontSize: 18, color: '#fff' },
+  editPageContent: { paddingBottom: 100, alignItems: 'center' },
+  routineItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  inputBox: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 8,
     fontFamily: 'Jua',
-    fontSize: 18,
-    color: '#fff',  
+  },
+  removeButton: {
+    marginLeft: 10,
+    backgroundColor: '#ffaaaa',
+    padding: 8,
+    borderRadius: 8,
+  },
+  removeText: { color: '#fff', fontWeight: 'bold' },
+  addButton: {
+    backgroundColor: '#ffd699',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+  },
+  addText: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+  logList: { alignItems: 'flex-start' },
+  editRoutineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  editInputBox: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 8,
+    fontFamily: 'Jua',
+    color: '#555',
+  },
+  editBox: {
+    backgroundColor: '#fff3eb',
+    borderRadius: 16,
+    padding: 16,
+    width: '80%',
   },
 });
