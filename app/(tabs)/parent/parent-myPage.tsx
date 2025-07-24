@@ -1,4 +1,5 @@
 import CustomDropdown from '@/components/CustomDropdown'; // 상단 import 추가
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Dimensions,
@@ -215,12 +216,19 @@ export default function ParentMyPage() {
 
         {mode === 'edit' && renderChildInfoForm(true, false)}
       </ScrollView>
-      <View style={styles.homeWrapper}>
-        <Image
-          source={require('@/assets/images/home.png')}
-          style={styles.homeIcon}
-          resizeMode="contain"
-        />
+      <View style={styles.bottomButtons}>
+        <TouchableOpacity style={styles.homeButton}>
+          <Image
+            source={require('@/assets/images/home.png')}
+            style={{ width: 80, height: 80, marginTop: 30 }}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.pageButton}
+          onPress={() => router.push('/parent/parent-myPage')}
+        >
+          <Text style={styles.buttonTextLarge}>로그아웃</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -230,8 +238,8 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 80, // ✅ 가운데 정렬
-    minHeight: Dimensions.get('window').height, // ✅ 전체 높이만큼 공간 확보
+    paddingTop: 80, // 가운데 정렬
+    minHeight: Dimensions.get('window').height, // 전체 높이만큼 공간 확보
     paddingBottom: 80,
     backgroundColor: '#fff',
   },
@@ -334,15 +342,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#333',
   },
-  homeIcon: {
-    width: 80,
-    height: 80,
-  },
-  homeWrapper: {
-    position: 'absolute',
-    bottom: 20,
-    alignSelf: 'center',
-  },
   duplicationText: {
     fontFamily: 'Jua',
     fontSize: 16,
@@ -350,5 +349,32 @@ const styles = StyleSheet.create({
     marginTop: 10,
     alignSelf: 'flex-end',
     marginRight: 10,
+  },
+  bottomButtons: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 20,
+    position: 'relative',
+    height: 100,
+  },
+  homeButton: {
+    position: 'absolute',
+    left: '50%',
+    bottom: 30,
+    transform: [{ translateX: -40 }],
+  },
+  pageButton: {
+    position: 'absolute',
+    right: 40,
+    backgroundColor: '#FFD4AA',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    bottom: 50,
+  },
+  buttonTextLarge: {
+    fontFamily: 'Jua',
+    color: '#444',
+    fontSize: 18,
   },
 });

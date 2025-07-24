@@ -242,7 +242,7 @@ export default function ParentHome() {
         <TouchableOpacity style={styles.homeButton}>
           <Image
             source={require('@/assets/images/home.png')}
-            style={{ width: 60, height: 60, marginTop: 30 }}
+            style={{ width: 80, height: 80, marginTop: 30 }}
           />
         </TouchableOpacity>
         <TouchableOpacity
