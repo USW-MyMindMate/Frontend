@@ -77,6 +77,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontFamily: 'Jua',
     fontSize: 20,
+    lineHeight: 24,
     color: '#333',
   },
   dropdown: {
