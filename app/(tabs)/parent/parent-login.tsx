@@ -1,19 +1,48 @@
+import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export default function ParentLoginScreen() {
   const router = useRouter();
-  const [userId, setUserId] = useState('');
+  const [account, setUserId] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = () => {
-    if (userId === '123456' && password === '123456') {
-      router.push('/parent/parent-home');
-    } else {
-      Alert.alert('로그인 실패', '아이디 또는 비밀번호가 올바르지 않습니다.');
+  const handleLogin = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/user/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          account: account,
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('로그인 성공', data.message || '로그인이 완료되었습니다.');
+        router.push('/parent/parent-home');
+      } else {
+        Alert.alert('로그인 실패', data.message || '아이디 또는 비밀번호가 올바르지 않습니다.');
+      }
+    } catch (error) {
+      Alert.alert('에러 발생', '서버에 연결할 수 없습니다.');
+      console.error(error);
     }
   };
+
 
   return (
     <View style={styles.container}>
@@ -25,29 +54,44 @@ export default function ParentLoginScreen() {
         <Text style={styles.logoHighlight}>M</Text>
         <Text style={styles.logoLight}>ate</Text>
       </Text>
+
       <View style={styles.labelBox}>
         <Text style={styles.labelText}>부모</Text>
       </View>
+
       <View style={styles.form}>
-        <TextInput 
-          placeholder="아이디" 
-          style={[styles.input, { fontFamily: 'Jua', textAlignVertical: 'top' }]} 
-          placeholderTextColor="#aaa"
-          value={userId}
-          onChangeText={setUserId}
-        />
-        <TextInput 
-          placeholder="비밀번호" 
-          style={[styles.input, { fontFamily: 'Jua', textAlignVertical: 'top' }]} 
-          placeholderTextColor="#aaa"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+        <View style={styles.inputRow}>
+          <TextInput
+            placeholder="아이디"
+            style={styles.input}
+            placeholderTextColor="#aaa"
+            value={account}
+            onChangeText={setUserId}
+          />
+        </View>
+
+        <View style={styles.inputRow}>
+          <TextInput
+            placeholder="비밀번호"
+            style={[styles.input, { flex: 1 }]}
+            placeholderTextColor="#aaa"
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity
+            style={styles.eyeIcon}
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <FontAwesome name={showPassword ? 'eye' : 'eye-slash'} size={24} color="#999" />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.button} onPress={handleLogin}>
           <Text style={styles.buttonText}>로그인</Text>
         </TouchableOpacity>
       </View>
+
       <TouchableOpacity
         style={styles.joinButton}
         onPress={() => router.push('/parent/parentSignUp')}
@@ -99,13 +143,36 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 20,
   },
-  input: {
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#fff8f0',
-    padding: 14,
     borderRadius: 10,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  input: {
     fontFamily: 'Jua',
     fontSize: 16,
+    paddingVertical: 14,
+    flex: 1,
+  },
+  eyeIcon: {
+    padding: 5,
+  },
+  conditionBox: {
+    marginTop: 4,
     marginBottom: 10,
+  },
+  conditionText: {
+    fontFamily: 'Jua',
+    fontSize: 13,
+  },
+  ok: {
+    color: 'green',
+  },
+  no: {
+    color: 'red',
   },
   button: {
     backgroundColor: '#ffc58b',
