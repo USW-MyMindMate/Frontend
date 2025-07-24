@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   button: {
-    backgroundColor: '#FFD4AA',
+    backgroundColor: '#fde2cf',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,

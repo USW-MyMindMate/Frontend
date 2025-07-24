@@ -225,7 +225,7 @@ export default function ParentMyPage() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.pageButton}
-          onPress={() => router.push('/parent/parent-myPage')}
+          onPress={() => router.push('/parent/parent-login')}
         >
           <Text style={styles.buttonTextLarge}>로그아웃</Text>
         </TouchableOpacity>
@@ -252,7 +252,11 @@ const styles = StyleSheet.create({
   logoHighlight: { color: '#FF9D00' },
   logoLight: { color: '#FFC36C' },
 
-  dropdownWrapper: { alignItems: 'center' },
+  dropdownWrapper: {
+    alignItems: 'flex-start', // 왼쪽 정렬
+    width: '80%', // 드롭다운 너비 확보 (필요 시)
+    marginBottom: 10,
+  },
 
   dropdownItem: {
     fontFamily: 'Jua',
