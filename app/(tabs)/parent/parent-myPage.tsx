@@ -128,6 +128,32 @@ export default function ParentMyPage() {
     </View>
   );
 
+  // ✅ 로그아웃 기능을 처리하는 함수 추가
+  const handleLogout = async () => {
+    try {
+      // ✅ 로그아웃 API 호출 (POST 요청)
+      const response = await fetch('http://localhost:8080/user/logout', {
+        method: 'POST',
+        // 포스트맨 예시에 따른 헤더(쿠키)는 필요 시 추가
+      });
+
+      if (response.ok) {
+        // ✅ 로그아웃 성공 시
+        router.push('/'); // 부모/자녀 선택 화면(index.tsx)으로 이동
+      } else {
+        // ✅ 로그아웃 실패 시 (예: 세션 만료)
+        // 실패 메시지를 사용자에게 보여주고, 그래도 로그인 화면으로 이동
+        const errorData = await response.json();
+        alert(errorData.error || '로그아웃 실패');
+        router.push('/');
+      }
+    } catch (error) {
+      // ✅ 네트워크 에러 등 예외 처리
+      alert('네트워크 오류. 다시 시도해 주세요.');
+      console.error(error);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -223,9 +249,10 @@ export default function ParentMyPage() {
             style={{ width: 80, height: 80, marginTop: 30 }}
           />
         </TouchableOpacity>
+        {/* ✅ 마이페이지 버튼을 로그아웃 버튼으로 교체하고 onPress에 handleLogout 함수 연결 */}
         <TouchableOpacity
           style={styles.pageButton}
-          onPress={() => router.push('/parent/parent-myPage')}
+          onPress={handleLogout}
         >
           <Text style={styles.buttonTextLarge}>로그아웃</Text>
         </TouchableOpacity>
