@@ -1,4 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -29,20 +30,31 @@ export default function ParentLoginScreen() {
         }),
       });
 
+      const setCookieHeader = response.headers.get('Set-Cookie');
+      if (setCookieHeader) {
+        // JSESSIONID 값을 추출합니다.
+        const sessionId = setCookieHeader.split(';')[0];
+
+        // ✅ AsyncStorage에 세션 ID를 저장합니다.
+        await AsyncStorage.setItem('JSESSIONID', sessionId);
+      }
+
       const data = await response.json();
 
       if (response.ok) {
         Alert.alert('로그인 성공', data.message || '로그인이 완료되었습니다.');
         router.push('/parent/parent-home');
       } else {
-        Alert.alert('로그인 실패', data.message || '아이디 또는 비밀번호가 올바르지 않습니다.');
+        Alert.alert(
+          '로그인 실패',
+          data.message || '아이디 또는 비밀번호가 올바르지 않습니다.'
+        );
       }
     } catch (error) {
       Alert.alert('에러 발생', '서버에 연결할 수 없습니다.');
       console.error(error);
     }
   };
-
 
   return (
     <View style={styles.container}>
@@ -83,7 +95,11 @@ export default function ParentLoginScreen() {
             style={styles.eyeIcon}
             onPress={() => setShowPassword(!showPassword)}
           >
-            <FontAwesome name={showPassword ? 'eye' : 'eye-slash'} size={24} color="#999" />
+            <FontAwesome
+              name={showPassword ? 'eye' : 'eye-slash'}
+              size={24}
+              color="#999"
+            />
           </TouchableOpacity>
         </View>
 

@@ -1,4 +1,5 @@
 import CustomDropdown from '@/components/CustomDropdown'; // 상단 import 추가
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -131,13 +132,26 @@ export default function ParentMyPage() {
   // ✅ 로그아웃 기능을 처리하는 함수 추가
   const handleLogout = async () => {
     try {
+      // ✅ AsyncStorage에서 세션 ID를 가져옵니다.
+      const sessionId = await AsyncStorage.getItem('JSESSIONID');
+
+      // ✅ 헤더 객체를 먼저 정의하고, 세션ID가 있을 때만 'Cookie' 속성을 추가합니다.
+      const headers = new Headers();
+      headers.append('Content-Type', 'application/json');
+
+      if (sessionId) {
+        headers.append('Cookie', sessionId);
+      }
+
       // ✅ 로그아웃 API 호출 (POST 요청)
       const response = await fetch('http://localhost:8080/user/logout', {
         method: 'POST',
-        // 포스트맨 예시에 따른 헤더(쿠키)는 필요 시 추가
+        headers: headers,
       });
 
       if (response.ok) {
+        // ✅ 로그아웃 성공 시 저장된 세션 ID를 삭제합니다.
+        await AsyncStorage.removeItem('JSESSIONID');
         // ✅ 로그아웃 성공 시
         router.push('/'); // 부모/자녀 선택 화면(index.tsx)으로 이동
       } else {
@@ -145,6 +159,7 @@ export default function ParentMyPage() {
         // 실패 메시지를 사용자에게 보여주고, 그래도 로그인 화면으로 이동
         const errorData = await response.json();
         alert(errorData.error || '로그아웃 실패');
+        await AsyncStorage.removeItem('JSESSIONID');
         router.push('/');
       }
     } catch (error) {
@@ -250,10 +265,7 @@ export default function ParentMyPage() {
           />
         </TouchableOpacity>
         {/* ✅ 마이페이지 버튼을 로그아웃 버튼으로 교체하고 onPress에 handleLogout 함수 연결 */}
-        <TouchableOpacity
-          style={styles.pageButton}
-          onPress={handleLogout}
-        >
+        <TouchableOpacity style={styles.pageButton} onPress={handleLogout}>
           <Text style={styles.buttonTextLarge}>로그아웃</Text>
         </TouchableOpacity>
       </View>
