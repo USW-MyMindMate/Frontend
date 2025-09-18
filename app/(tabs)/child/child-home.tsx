@@ -1,17 +1,140 @@
-import React, { useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View, TextInput } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+const emotionMapping = {
+  좋아요: 'HAPPY',
+  슬퍼요: 'SAD',
+  화나요: 'ANGRY',
+  아파요: 'SICK',
+};
 
 export default function ChildHomeScreen() {
-  const [checkedItems, setCheckedItems] = useState<boolean[]>([false, false, false, false]);
+  const [checkedItems, setCheckedItems] = useState<boolean[]>([
+    false,
+    false,
+    false,
+    false,
+  ]);
   const [isPopupVisible, setIsPopupVisible] = useState(true);
   const [emotionReason, setEmotionReason] = useState('');
   const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<string[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const toggleCheck = (index: number) => {
     const newChecked = [...checkedItems];
     newChecked[index] = !newChecked[index];
     setCheckedItems(newChecked);
   };
+
+  const fetchRecommendations = useCallback(async (moodTypeName: string) => {
+    setLoading(true);
+    try {
+      const sessionId = await AsyncStorage.getItem('JSESSIONID');
+
+      const headers = new Headers();
+      headers.append('Content-Type', 'application/json');
+      if (sessionId) {
+        headers.append('Cookie', sessionId);
+      }
+
+      const response = await fetch(
+        `http://3.39.122.126:8080/api/moods/recommend?moodTypeName=${moodTypeName}`,
+        {
+          method: 'GET',
+          headers: headers,
+        }
+      );
+
+      if (response.ok) {
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : [];
+        setRecommendations(data);
+      } else {
+        setRecommendations(['추천 활동을 가져오는데 실패했습니다.']);
+      }
+    } catch (err: unknown) {
+      setRecommendations(['네트워크 오류로 추천 활동을 가져올 수 없습니다.']);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleDoneMood = async () => {
+    if (!selectedEmotion) {
+      Alert.alert('알림', '감정을 먼저 선택해주세요!');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const moodTypeName =
+      emotionMapping[selectedEmotion as keyof typeof emotionMapping];
+
+    try {
+      const sessionId = await AsyncStorage.getItem('JSESSIONID');
+
+      // ✅ userId 상태 변수를 직접 사용하도록 수정
+      if (!sessionId || !userId) {
+        Alert.alert('오류', '로그인 정보가 없습니다.');
+        return;
+      }
+
+      const headers = new Headers();
+      headers.append('Content-Type', 'application/json');
+      headers.append('Cookie', sessionId);
+
+      const response = await fetch('http://3.39.122.126:8080/api/moods', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          userId: parseInt(userId), // ✅ userId 상태 변수를 사용
+          reason: emotionReason,
+          moodTypeName: moodTypeName,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchRecommendations(moodTypeName);
+        setIsPopupVisible(false);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '감정 기록에 실패했습니다.');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('알 수 없는 오류가 발생했습니다.');
+      }
+      Alert.alert('에러', error || '감정 기록에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ 컴포넌트 마운트 시 userId를 가져와 상태에 저장
+  useEffect(() => {
+    const loadUserId = async () => {
+      const storedUserId = await AsyncStorage.getItem('userId');
+      setUserId(storedUserId);
+    };
+    loadUserId();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -27,7 +150,9 @@ export default function ChildHomeScreen() {
 
       {/* 오늘의 할 일 */}
       <View style={styles.todoBox}>
-        <Text style={[styles.boxTitle, { fontFamily: 'Jua' }]}>오늘의 할 일</Text>
+        <Text style={[styles.boxTitle, { fontFamily: 'Jua' }]}>
+          오늘의 할 일
+        </Text>
         {[1, 2, 3, 4].map((item, index: number) => (
           <TouchableOpacity
             key={item}
@@ -52,7 +177,23 @@ export default function ChildHomeScreen() {
 
       {/* 이걸 해볼까? */}
       <View style={styles.tryBox}>
-        <Text style={[styles.boxTitle, { fontFamily: 'Jua' }]}>이걸 해볼까?</Text>
+        <Text style={[styles.boxTitle, { fontFamily: 'Jua' }]}>
+          이걸 해볼까?
+        </Text>
+        {loading ? (
+          <Text style={styles.loadingText}>추천 활동을 불러오는 중...</Text>
+        ) : error ? (
+          <Text style={styles.errorText}>오류 발생: {error}</Text>
+        ) : (
+          <View>
+            {recommendations &&
+              recommendations.map((rec, index) => (
+                <Text key={index} style={styles.recommendationText}>
+                  - {rec}
+                </Text>
+              ))}
+          </View>
+        )}
       </View>
 
       {/* 홈 아이콘 */}
@@ -88,10 +229,12 @@ export default function ChildHomeScreen() {
                     ]}
                     onPress={() => setSelectedEmotion(emotion)}
                   >
-                    <Text style={[
-                      styles.emotionText,
-                      isSelected && styles.emotionTextSelected
-                    ]}>
+                    <Text
+                      style={[
+                        styles.emotionText,
+                        isSelected && styles.emotionTextSelected,
+                      ]}
+                    >
                       {emotion}
                     </Text>
                   </TouchableOpacity>
@@ -102,7 +245,8 @@ export default function ChildHomeScreen() {
             <View style={styles.separator} />
 
             <Text style={styles.popupSubTitle}>
-              왜 기분이 {selectedEmotion ? selectedEmotion.replace(/요$/, '') : '00야'}?
+              왜 기분이{' '}
+              {selectedEmotion ? selectedEmotion.replace(/요$/, '') : '00야'}?
             </Text>
 
             <TextInput
@@ -116,7 +260,10 @@ export default function ChildHomeScreen() {
 
             <Text style={styles.popupHint}>꼭 적지 않아도 괜찮아!</Text>
 
-            <TouchableOpacity style={styles.doneButton} onPress={() => setIsPopupVisible(false)}>
+            <TouchableOpacity
+              style={styles.doneButton}
+              onPress={handleDoneMood}
+            >
               <Text style={styles.doneButtonText}>완료</Text>
             </TouchableOpacity>
           </View>
@@ -301,5 +448,25 @@ const styles = StyleSheet.create({
     fontFamily: 'Jua',
     fontSize: 18,
     color: '#fff',
+  },
+  loadingText: {
+    fontFamily: 'Jua',
+    fontSize: 18,
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  errorText: {
+    fontFamily: 'Jua',
+    fontSize: 18,
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  recommendationText: {
+    fontFamily: 'Jua',
+    fontSize: 16,
+    color: '#555',
+    marginBottom: 8,
   },
 });

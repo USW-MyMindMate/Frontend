@@ -129,41 +129,56 @@ export default function ParentMyPage() {
     </View>
   );
 
-  // ✅ 로그아웃 기능을 처리하는 함수 추가
   const handleLogout = async () => {
     try {
-      // ✅ AsyncStorage에서 세션 ID를 가져옵니다.
       const sessionId = await AsyncStorage.getItem('JSESSIONID');
-
-      // ✅ 헤더 객체를 먼저 정의하고, 세션ID가 있을 때만 'Cookie' 속성을 추가합니다.
       const headers = new Headers();
       headers.append('Content-Type', 'application/json');
 
       if (sessionId) {
         headers.append('Cookie', sessionId);
+      } else {
+        // ✅ 세션이 없을 경우, 로컬에서만 로그아웃 처리
+        alert('세션이 없습니다.');
+        await AsyncStorage.removeItem('JSESSIONID');
+        router.push('/');
+        return;
       }
 
-      // ✅ 로그아웃 API 호출 (POST 요청)
-      const response = await fetch('http://localhost:8080/user/logout', {
+      // ✅ 서버 IP 주소로 API 호출
+      const response = await fetch('http://3.39.122.126:8080/user/logout', {
         method: 'POST',
         headers: headers,
       });
 
+      // ✅ 세션 만료, 중복 로그아웃 등 모든 실패 케이스를 처리
+      // 응답 본문이 없을 경우를 대비해 text()를 먼저 시도
+      // ✅ 응답 본문이 없을 경우를 대비해 text()를 먼저 시도
+      let data = null;
+      try {
+        const text = await response.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
+      } catch (e) {
+        console.warn('Response body is not JSON', e);
+      }
+
       if (response.ok) {
-        // ✅ 로그아웃 성공 시 저장된 세션 ID를 삭제합니다.
+        // ✅ 200 OK 응답일 경우 (정상 로그아웃 또는 중복 로그아웃)
         await AsyncStorage.removeItem('JSESSIONID');
-        // ✅ 로그아웃 성공 시
-        router.push('/'); // 부모/자녀 선택 화면(index.tsx)으로 이동
+        router.push('/');
+        alert(data?.message || '로그아웃 되었습니다.');
       } else {
-        // ✅ 로그아웃 실패 시 (예: 세션 만료)
-        // 실패 메시지를 사용자에게 보여주고, 그래도 로그인 화면으로 이동
-        const errorData = await response.json();
-        alert(errorData.error || '로그아웃 실패');
+        // ✅ 400 Bad Request 등 오류 처리
+        const errorMessage =
+          data?.error || data?.message || '로그아웃에 실패했습니다.';
+        alert(errorMessage);
+        // 실패하더라도 로컬 세션은 삭제 (세션 만료 상태 등)
         await AsyncStorage.removeItem('JSESSIONID');
         router.push('/');
       }
     } catch (error) {
-      // ✅ 네트워크 에러 등 예외 처리
       alert('네트워크 오류. 다시 시도해 주세요.');
       console.error(error);
     }

@@ -19,7 +19,7 @@ export default function ParentLoginScreen() {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://localhost:8080/user/login', {
+      const response = await fetch('http://3.39.122.126:8080/user/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

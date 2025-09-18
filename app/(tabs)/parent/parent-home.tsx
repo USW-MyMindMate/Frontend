@@ -1,7 +1,9 @@
 import CustomDropdown from '@/components/CustomDropdown';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   Modal,
   ScrollView,
@@ -12,7 +14,11 @@ import {
   View,
 } from 'react-native';
 
-const children = ['이서연', '김하윤', '박지후'];
+const children = [
+  { name: '이서연', userId: '1' },
+  { name: '김하윤', userId: '2' },
+  { name: '박지후', userId: '3' },
+];
 
 export default function ParentHome() {
   const [selectedChild, setSelectedChild] = useState(children[0]);
@@ -21,20 +27,22 @@ export default function ParentHome() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showGraphPopup, setShowGraphPopup] = useState(false);
   const [isEditPage, setIsEditPage] = useState(false);
-  const [routineList, setRoutineList] = useState<string[]>([
-    '할 일 1',
-    '할 일 2',
-    '할 일 3',
-    '할 일 4',
-  ]);
+
+  const [routineList, setRoutineList] = useState<any[]>([]);
+  const [routineLogs, setRoutineLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const addRoutine = () => {
-    setRoutineList([...routineList, `할 일 ${routineList.length + 1}`]);
+    setRoutineList([
+      ...routineList,
+      { title: `할 일 ${routineList.length + 1}` },
+    ]);
   };
 
   const updateRoutine = (index: number, value: string) => {
     const updated = [...routineList];
-    updated[index] = value;
+    updated[index].title = value;
     setRoutineList(updated);
   };
 
@@ -58,6 +66,118 @@ export default function ParentHome() {
 
   const router = useRouter();
 
+  const fetchRoutines = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const sessionId = await AsyncStorage.getItem('JSESSIONID');
+      if (!sessionId) {
+        throw new Error('로그인 세션이 없습니다.');
+      }
+
+      const response = await fetch(
+        `http://3.39.122.126:8080/api/routines/user/${selectedChild.userId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: sessionId,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setRoutineList(data);
+      } else {
+        throw new Error('루틴 정보를 불러오는 데 실패했습니다.');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('알 수 없는 오류가 발생했습니다.');
+      }
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedChild]);
+
+  const fetchRoutineLogs = useCallback(async () => {
+    try {
+      const sessionId = await AsyncStorage.getItem('JSESSIONID');
+      if (!sessionId) return;
+
+      const response = await fetch(
+        `http://3.39.122.126:8080/api/routine-logs/user/${selectedChild.userId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: sessionId,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setRoutineLogs(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [selectedChild]);
+
+  const handleRoutineCheck = async (
+    routineId: number,
+    isCompleted: boolean
+  ) => {
+    try {
+      const sessionId = await AsyncStorage.getItem('JSESSIONID');
+      if (!sessionId) {
+        Alert.alert('알림', '로그인 세션이 만료되었습니다.');
+        return;
+      }
+
+      const response = await fetch(
+        'http://3.39.122.126:8080/api/routine-logs',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: sessionId,
+          },
+          body: JSON.stringify({
+            routineId,
+            userId: selectedChild.userId,
+            isCompleted,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        fetchRoutineLogs();
+      } else {
+        Alert.alert('오류', '루틴 상태 업데이트에 실패했습니다.');
+      }
+    } catch (err) {
+      Alert.alert('에러', '네트워크 오류.');
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoutines();
+    fetchRoutineLogs();
+  }, [selectedChildIndex, fetchRoutines, fetchRoutineLogs]);
+
+  const isRoutineCompleted = (routineId: number) => {
+    return routineLogs.some(
+      (log) => log.routineId === routineId && log.isCompleted
+    );
+  };
+
   if (isEditPage) {
     return (
       <View style={styles.container}>
@@ -73,7 +193,7 @@ export default function ParentHome() {
         <View style={styles.editBox}>
           <View style={styles.routineHeader}>
             <CustomDropdown
-              options={children}
+              options={children.map((c) => c.name)}
               selectedIndex={selectedChildIndex}
               onSelect={(index) => setSelectedChildIndex(index)}
             />
@@ -84,7 +204,7 @@ export default function ParentHome() {
             <View key={index} style={styles.editRoutineRow}>
               <TextInput
                 style={styles.editInputBox}
-                value={item}
+                value={item.title}
                 onChangeText={(text) => updateRoutine(index, text)}
               />
               <TouchableOpacity
@@ -124,9 +244,12 @@ export default function ParentHome() {
       <View style={styles.todoBox}>
         <View style={styles.routineHeader}>
           <CustomDropdown
-            options={children}
+            options={children.map((c) => c.name)}
             selectedIndex={selectedChildIndex}
-            onSelect={(index) => setSelectedChildIndex(index)}
+            onSelect={(index) => {
+              setSelectedChildIndex(index);
+              setSelectedChild(children[index]);
+            }}
           />
           <Text style={styles.routineTitle}>{`'s routine`}</Text>
         </View>
@@ -135,30 +258,55 @@ export default function ParentHome() {
           <View style={styles.dropdownOverlay}>
             {children.map((child) => (
               <TouchableOpacity
-                key={child}
+                key={child.userId}
                 onPress={() => {
                   setSelectedChild(child);
                   setDropdownOpen(false);
                 }}
                 style={styles.dropdownItemContainer}
               >
-                <Text style={styles.dropdownItem}>{child}</Text>
+                <Text style={styles.dropdownItem}>{child.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
         )}
 
-        <ScrollView
-          style={{ maxHeight: 180 }}
-          contentContainerStyle={styles.routineListVertical}
-        >
-          {routineList.map((item, index) => (
-            <View key={index} style={styles.routineItemRow}>
-              <View style={styles.checkbox} />
-              <Text style={styles.boxTitle}>{item}</Text>
-            </View>
-          ))}
-        </ScrollView>
+        {loading ? (
+          <Text style={styles.loadingText}>루틴을 불러오는 중...</Text>
+        ) : error ? (
+          <Text style={styles.errorText}>오류 발생: {error}</Text>
+        ) : (
+          <ScrollView
+            style={{ maxHeight: 180 }}
+            contentContainerStyle={styles.routineListVertical}
+          >
+            {routineList.map((item) => {
+              const isCompleted = isRoutineCompleted(item.id);
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.routineItemRow}
+                  onPress={() => handleRoutineCheck(item.id, !isCompleted)}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      isCompleted && styles.checkboxCompleted,
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.boxTitle,
+                      isCompleted && styles.boxTitleCompleted,
+                    ]}
+                  >
+                    {item.title}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
 
         <TouchableOpacity
           style={styles.editButton}
@@ -172,7 +320,7 @@ export default function ParentHome() {
         <View style={styles.logList}>
           {emotionLogs.map((log, index) => (
             <Text key={index} style={styles.boxTitle}>
-              {log.time} ({selectedChild} - {log.emotion}) {log.note}
+              {log.time} ({selectedChild.name} - {log.emotion}) {log.note}
             </Text>
           ))}
         </View>
@@ -290,7 +438,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     height: 300,
     marginBottom: 20,
-    position: 'relative',
   },
   routineHeader: {
     flexDirection: 'row',
@@ -476,5 +623,26 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     width: '80%',
+  },
+  loadingText: {
+    fontFamily: 'Jua',
+    fontSize: 18,
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  errorText: {
+    fontFamily: 'Jua',
+    fontSize: 18,
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  checkboxCompleted: {
+    backgroundColor: 'green',
+  },
+  boxTitleCompleted: {
+    textDecorationLine: 'line-through',
+    color: '#888',
   },
 });
