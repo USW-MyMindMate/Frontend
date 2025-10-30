@@ -19,7 +19,7 @@ export default function ParentLoginScreen() {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://3.39.122.126:8080/user/login', {
+      const response = await fetch('http://localhost:8080/user/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -30,18 +30,11 @@ export default function ParentLoginScreen() {
         }),
       });
 
-      const setCookieHeader = response.headers.get('Set-Cookie');
-      if (setCookieHeader) {
-        // JSESSIONID 값을 추출합니다.
-        const sessionId = setCookieHeader.split(';')[0];
-
-        // ✅ AsyncStorage에 세션 ID를 저장합니다.
-        await AsyncStorage.setItem('JSESSIONID', sessionId);
-      }
-
       const data = await response.json();
 
       if (response.ok) {
+        await AsyncStorage.setItem('PARENT_ACCOUNT', account);
+
         Alert.alert('로그인 성공', data.message || '로그인이 완료되었습니다.');
         router.push('/parent/parent-home');
       } else {

@@ -12,6 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
+const BASE_URL = 'http://localhost:8080'; // 🚨 IP 주소 수정 필요
+
 export default function ParentSignUp() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -39,8 +42,8 @@ export default function ParentSignUp() {
 
     try {
       const url = isResend
-        ? `http://3.39.122.126:8080/user/reconfirm-email?email=${email}`
-        : `http://3.39.122.126:8080/user/confirm-email?email=${email}`;
+        ? `${BASE_URL}/user/reconfirm-email?email=${email}`
+        : `${BASE_URL}/user/confirm-email?email=${email}`;
       const method = isResend ? 'POST' : 'GET';
 
       const response = await fetch(url, {
@@ -91,7 +94,7 @@ export default function ParentSignUp() {
 
     try {
       const response = await fetch(
-        `http://3.39.122.126:8080/user/check-account?account=${userId}`,
+        `${BASE_URL}/user/check-account?account=${userId}`,
         {
           method: 'GET',
           headers: {
@@ -139,19 +142,16 @@ export default function ParentSignUp() {
     }
 
     try {
-      const response = await fetch(
-        'http://3.39.122.126:8080/user/sign-up-finish',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            account: userId,
-            email: email,
-            password: password,
-            passwordConfirm: passwordConfirm,
-          }),
-        }
-      );
+      const response = await fetch(`${BASE_URL}/user/sign-up-finish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account: userId,
+          email: email,
+          password: password,
+          passwordConfirm: passwordConfirm,
+        }),
+      });
 
       const data = await response.json();
 

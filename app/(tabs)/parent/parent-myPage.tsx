@@ -13,6 +13,8 @@ import {
   View,
 } from 'react-native';
 
+const BASE_URL = 'http://localhost:8080'; // 🚨 IP 주소 수정 필요
+
 interface ChildInfo {
   name: string;
   birthYear: string;
@@ -131,22 +133,22 @@ export default function ParentMyPage() {
 
   const handleLogout = async () => {
     try {
-      const sessionId = await AsyncStorage.getItem('JSESSIONID');
+      const parentAccount = await AsyncStorage.getItem('PARENT_ACCOUNT');
       const headers = new Headers();
       headers.append('Content-Type', 'application/json');
 
-      if (sessionId) {
-        headers.append('Cookie', sessionId);
+      if (parentAccount) {
+        // ✅ 2. Cookie 대신 X-Parent-Account 헤더에 account 담기
+        headers.append('X-Parent-Account', parentAccount);
       } else {
-        // ✅ 세션이 없을 경우, 로컬에서만 로그아웃 처리
-        alert('세션이 없습니다.');
-        await AsyncStorage.removeItem('JSESSIONID');
+        // ✅ 3. 세션이 없을 경우, 로컬에서만 로그아웃 처리 (JSESSIONID 대신 PARENT_ACCOUNT 삭제)
+        alert('로그인 정보가 없습니다.');
+        await AsyncStorage.removeItem('PARENT_ACCOUNT');
         router.push('/');
         return;
       }
 
-      // ✅ 서버 IP 주소로 API 호출
-      const response = await fetch('http://3.39.122.126:8080/user/logout', {
+      const response = await fetch(`${BASE_URL}/user/logout`, {
         method: 'POST',
         headers: headers,
       });
@@ -165,8 +167,8 @@ export default function ParentMyPage() {
       }
 
       if (response.ok) {
-        // ✅ 200 OK 응답일 경우 (정상 로그아웃 또는 중복 로그아웃)
-        await AsyncStorage.removeItem('JSESSIONID');
+        // ✅ 5. 200 OK 응답일 경우 PARENT_ACCOUNT 삭제
+        await AsyncStorage.removeItem('PARENT_ACCOUNT');
         router.push('/');
         alert(data?.message || '로그아웃 되었습니다.');
       } else {
@@ -174,8 +176,8 @@ export default function ParentMyPage() {
         const errorMessage =
           data?.error || data?.message || '로그아웃에 실패했습니다.';
         alert(errorMessage);
-        // 실패하더라도 로컬 세션은 삭제 (세션 만료 상태 등)
-        await AsyncStorage.removeItem('JSESSIONID');
+        // ✅ 6. 실패하더라도 로컬 PARENT_ACCOUNT 삭제
+        await AsyncStorage.removeItem('PARENT_ACCOUNT');
         router.push('/');
       }
     } catch (error) {

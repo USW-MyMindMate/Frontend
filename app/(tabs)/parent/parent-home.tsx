@@ -20,6 +20,8 @@ const children = [
   { name: '박지후', userId: '3' },
 ];
 
+const BASE_URL = 'http://localhost:8080'; // 🚨 IP 주소 수정 필요
+
 export default function ParentHome() {
   const [selectedChild, setSelectedChild] = useState(children[0]);
   const [selectedChildIndex, setSelectedChildIndex] = useState(0);
@@ -70,18 +72,18 @@ export default function ParentHome() {
     setLoading(true);
     setError(null);
     try {
-      const sessionId = await AsyncStorage.getItem('JSESSIONID');
-      if (!sessionId) {
-        throw new Error('로그인 세션이 없습니다.');
+      const parentAccount = await AsyncStorage.getItem('PARENT_ACCOUNT');
+      if (!parentAccount) {
+        throw new Error('로그인 정보가 없습니다. 다시 로그인해 주세요.');
       }
 
       const response = await fetch(
-        `http://3.39.122.126:8080/api/routines/user/${selectedChild.userId}`,
+        `${BASE_URL}/api/routines/user/${selectedChild.userId}`, // ✅ URL 수정
         {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            Cookie: sessionId,
+            'X-Parent-Account': parentAccount,
           },
         }
       );
@@ -106,16 +108,16 @@ export default function ParentHome() {
 
   const fetchRoutineLogs = useCallback(async () => {
     try {
-      const sessionId = await AsyncStorage.getItem('JSESSIONID');
-      if (!sessionId) return;
+      const parentAccount = await AsyncStorage.getItem('PARENT_ACCOUNT');
+      if (!parentAccount) return;
 
       const response = await fetch(
-        `http://3.39.122.126:8080/api/routine-logs/user/${selectedChild.userId}`,
+        `${BASE_URL}/api/routine-logs/user/${selectedChild.userId}`, // ✅ URL 수정
         {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            Cookie: sessionId,
+            'Content-Type': 'application/json', // ✅ 2. Cookie 헤더 대신 X-Parent-Account 헤더 사용
+            'X-Parent-Account': parentAccount,
           },
         }
       );
@@ -134,19 +136,19 @@ export default function ParentHome() {
     isCompleted: boolean
   ) => {
     try {
-      const sessionId = await AsyncStorage.getItem('JSESSIONID');
-      if (!sessionId) {
-        Alert.alert('알림', '로그인 세션이 만료되었습니다.');
+      const parentAccount = await AsyncStorage.getItem('PARENT_ACCOUNT');
+      if (!parentAccount) {
+        Alert.alert('알림', '로그인 정보가 없습니다. 다시 로그인해 주세요.');
         return;
       }
 
       const response = await fetch(
-        'http://3.39.122.126:8080/api/routine-logs',
+        `${BASE_URL}/api/routine-logs`, // ✅ URL 수정
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            Cookie: sessionId,
+            'Content-Type': 'application/json', // ✅ 2. Cookie 헤더 대신 X-Parent-Account 헤더 사용
+            'X-Parent-Account': parentAccount,
           },
           body: JSON.stringify({
             routineId,

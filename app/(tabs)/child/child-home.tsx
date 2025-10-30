@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 
+const BASE_URL = 'http://localhost:8080'; // 🚨 IP 주소 수정 필요
+
 const emotionMapping = {
   좋아요: 'HAPPY',
   슬퍼요: 'SAD',
@@ -42,19 +44,23 @@ export default function ChildHomeScreen() {
   const fetchRecommendations = useCallback(async (moodTypeName: string) => {
     setLoading(true);
     try {
-      const sessionId = await AsyncStorage.getItem('JSESSIONID');
+      const childUserId = await AsyncStorage.getItem('childUserId');
+
+      if (!childUserId) {
+        throw new Error('아이디 정보가 없습니다.');
+      }
 
       const headers = new Headers();
       headers.append('Content-Type', 'application/json');
-      if (sessionId) {
-        headers.append('Cookie', sessionId);
-      }
 
       const response = await fetch(
-        `http://3.39.122.126:8080/api/moods/recommend?moodTypeName=${moodTypeName}`,
+        `${BASE_URL}/api/moods/recommend?moodTypeName=${moodTypeName}`,
         {
           method: 'GET',
-          headers: headers,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Child-Id': childUserId, // 아이 전용 인증 헤더 사용 (백엔드와 협의 필요)
+          },
         }
       );
 
