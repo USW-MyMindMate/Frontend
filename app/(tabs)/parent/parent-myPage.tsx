@@ -133,17 +133,17 @@ export default function ParentMyPage() {
 
   const handleLogout = async () => {
     try {
-      const parentAccount = await AsyncStorage.getItem('PARENT_ACCOUNT');
+      const parentUserId = await AsyncStorage.getItem('PARENT_USER_ID');
       const headers = new Headers();
       headers.append('Content-Type', 'application/json');
 
-      if (parentAccount) {
-        // ✅ 2. Cookie 대신 X-Parent-Account 헤더에 account 담기
-        headers.append('X-Parent-Account', parentAccount);
+      if (parentUserId) {
+        // ✅ 2. Cookie 대신 X-User-Id 헤더에 account 담기
+        headers.append('X-User-Id', parentUserId);
       } else {
         // ✅ 3. 세션이 없을 경우, 로컬에서만 로그아웃 처리 (JSESSIONID 대신 PARENT_ACCOUNT 삭제)
         alert('로그인 정보가 없습니다.');
-        await AsyncStorage.removeItem('PARENT_ACCOUNT');
+        await AsyncStorage.removeItem('PARENT_USER_ID');
         router.push('/');
         return;
       }
@@ -153,9 +153,6 @@ export default function ParentMyPage() {
         headers: headers,
       });
 
-      // ✅ 세션 만료, 중복 로그아웃 등 모든 실패 케이스를 처리
-      // 응답 본문이 없을 경우를 대비해 text()를 먼저 시도
-      // ✅ 응답 본문이 없을 경우를 대비해 text()를 먼저 시도
       let data = null;
       try {
         const text = await response.text();
@@ -167,8 +164,7 @@ export default function ParentMyPage() {
       }
 
       if (response.ok) {
-        // ✅ 5. 200 OK 응답일 경우 PARENT_ACCOUNT 삭제
-        await AsyncStorage.removeItem('PARENT_ACCOUNT');
+        await AsyncStorage.removeItem('PARENT_USER_ID');
         router.push('/');
         alert(data?.message || '로그아웃 되었습니다.');
       } else {
@@ -176,8 +172,7 @@ export default function ParentMyPage() {
         const errorMessage =
           data?.error || data?.message || '로그아웃에 실패했습니다.';
         alert(errorMessage);
-        // ✅ 6. 실패하더라도 로컬 PARENT_ACCOUNT 삭제
-        await AsyncStorage.removeItem('PARENT_ACCOUNT');
+        await AsyncStorage.removeItem('PARENT_USER_ID');
         router.push('/');
       }
     } catch (error) {

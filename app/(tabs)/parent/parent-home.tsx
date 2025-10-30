@@ -72,8 +72,8 @@ export default function ParentHome() {
     setLoading(true);
     setError(null);
     try {
-      const parentAccount = await AsyncStorage.getItem('PARENT_ACCOUNT');
-      if (!parentAccount) {
+      const parentUserId = await AsyncStorage.getItem('PARENT_USER_ID');
+      if (!parentUserId) {
         throw new Error('로그인 정보가 없습니다. 다시 로그인해 주세요.');
       }
 
@@ -83,7 +83,7 @@ export default function ParentHome() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'X-Parent-Account': parentAccount,
+            'X-User-Id': parentUserId,
           },
         }
       );
@@ -108,16 +108,16 @@ export default function ParentHome() {
 
   const fetchRoutineLogs = useCallback(async () => {
     try {
-      const parentAccount = await AsyncStorage.getItem('PARENT_ACCOUNT');
-      if (!parentAccount) return;
+      const parentUserId = await AsyncStorage.getItem('PARENT_USER_ID');
+      if (!parentUserId) return;
 
       const response = await fetch(
         `${BASE_URL}/api/routine-logs/user/${selectedChild.userId}`, // ✅ URL 수정
         {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json', // ✅ 2. Cookie 헤더 대신 X-Parent-Account 헤더 사용
-            'X-Parent-Account': parentAccount,
+            'Content-Type': 'application/json',
+            'X-User-Id': parentUserId,
           },
         }
       );
@@ -136,8 +136,8 @@ export default function ParentHome() {
     isCompleted: boolean
   ) => {
     try {
-      const parentAccount = await AsyncStorage.getItem('PARENT_ACCOUNT');
-      if (!parentAccount) {
+      const parentUserId = await AsyncStorage.getItem('PPARENT_USER_ID');
+      if (!parentUserId) {
         Alert.alert('알림', '로그인 정보가 없습니다. 다시 로그인해 주세요.');
         return;
       }
@@ -148,7 +148,7 @@ export default function ParentHome() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json', // ✅ 2. Cookie 헤더 대신 X-Parent-Account 헤더 사용
-            'X-Parent-Account': parentAccount,
+            'X-User-Id': parentUserId,
           },
           body: JSON.stringify({
             routineId,

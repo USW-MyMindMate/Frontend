@@ -25,7 +25,7 @@ export default function ParentLoginScreen() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          account: account,
+          userId: account,
           password: password,
         }),
       });
@@ -33,7 +33,7 @@ export default function ParentLoginScreen() {
       const data = await response.json();
 
       if (response.ok) {
-        await AsyncStorage.setItem('PARENT_ACCOUNT', account);
+        await AsyncStorage.setItem('PARENT_USER_ID', account);
 
         Alert.alert('로그인 성공', data.message || '로그인이 완료되었습니다.');
         router.push('/parent/parent-home');

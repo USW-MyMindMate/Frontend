@@ -59,7 +59,7 @@ export default function ChildHomeScreen() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'X-Child-Id': childUserId, // 아이 전용 인증 헤더 사용 (백엔드와 협의 필요)
+            'X-User-Id': childUserId,
           },
         }
       );
@@ -92,23 +92,22 @@ export default function ChildHomeScreen() {
       emotionMapping[selectedEmotion as keyof typeof emotionMapping];
 
     try {
-      const sessionId = await AsyncStorage.getItem('JSESSIONID');
+      const childUserId = await AsyncStorage.getItem('childUserId');
 
-      // ✅ userId 상태 변수를 직접 사용하도록 수정
-      if (!sessionId || !userId) {
+      if (!childUserId) {
         Alert.alert('오류', '로그인 정보가 없습니다.');
         return;
       }
 
       const headers = new Headers();
-      headers.append('Content-Type', 'application/json');
-      headers.append('Cookie', sessionId);
+      headers.append('Content-Type', 'application/json'); // ✅ Postman 명세에 따라 X-User-Id 헤더에 아이디 담기
+      headers.append('X-User-Id', childUserId);
 
       const response = await fetch('http://3.39.122.126:8080/api/moods', {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
-          userId: parseInt(userId), // ✅ userId 상태 변수를 사용
+          userId: parseInt(childUserId), // ✅ userId 상태 변수를 사용
           reason: emotionReason,
           moodTypeName: moodTypeName,
         }),
