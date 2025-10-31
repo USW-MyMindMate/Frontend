@@ -1,17 +1,53 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+const BASE_URL = 'http://localhost:8080';
 
 export default function ChildLoginScreen() {
   const [childId, setChildId] = useState('');
   const router = useRouter();
 
-  const handleLogin = () => {
-    if (childId === '123456') {
-      // 로그인 성공 시 아이 홈 화면으로 이동
-      router.push('/child/child-home');
-    } else {
-      Alert.alert('로그인 실패', '아이디가 올바르지 않습니다.');
+  const handleLogin = async () => {
+    // async 추가
+    if (!childId) {
+      Alert.alert('알림', '아이디를 입력해주세요.');
+      return;
+    }
+
+    try {
+      // ✅ 1. POST /child/login API 호출 (Postman 명세)
+      const response = await fetch(`${BASE_URL}/child/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: childId }), // Postman 명세에 따라 userId 사용
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // ✅ 2. 로그인 성공 시 아이디 저장 키 통일
+        await AsyncStorage.setItem('CHILD_USER_ID', childId);
+
+        Alert.alert('로그인 성공', data.message || '로그인이 완료되었습니다.');
+        router.push('/child/child-home');
+      } else {
+        Alert.alert(
+          '로그인 실패',
+          data.message || '아이디가 올바르지 않습니다.'
+        );
+      }
+    } catch (error) {
+      Alert.alert('에러', '서버 연결에 실패했습니다.');
+      console.error(error);
     }
   };
 

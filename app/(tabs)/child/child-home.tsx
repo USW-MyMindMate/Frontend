@@ -19,6 +19,13 @@ const emotionMapping = {
   아파요: 'SICK',
 };
 
+const emotionIcons = {
+  좋아요: require('../../../assets/images/emoji_happy.png'),
+  슬퍼요: require('../../../assets/images/emoji_sad.png'),
+  화나요: require('../../../assets/images/emoji_angry.png'),
+  아파요: require('../../../assets/images/emoji_sick.png'),
+};
+
 export default function ChildHomeScreen() {
   const [checkedItems, setCheckedItems] = useState<boolean[]>([
     false,
@@ -30,7 +37,6 @@ export default function ChildHomeScreen() {
   const [emotionReason, setEmotionReason] = useState('');
   const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
 
-  const [userId, setUserId] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,23 +50,22 @@ export default function ChildHomeScreen() {
   const fetchRecommendations = useCallback(async (moodTypeName: string) => {
     setLoading(true);
     try {
-      const childUserId = await AsyncStorage.getItem('childUserId');
+      const childUserId = await AsyncStorage.getItem('CHILD_USER_ID');
 
       if (!childUserId) {
         throw new Error('아이디 정보가 없습니다.');
       }
 
-      const headers = new Headers();
-      headers.append('Content-Type', 'application/json');
+      const headers = {
+        'Content-Type': 'application/json', // ✅ 2. Postman 명세에 따라 X-User-Id 헤더 사용
+        'X-User-Id': childUserId,
+      };
 
       const response = await fetch(
         `${BASE_URL}/api/moods/recommend?moodTypeName=${moodTypeName}`,
         {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-User-Id': childUserId,
-          },
+          headers: headers,
         }
       );
 
@@ -92,22 +97,24 @@ export default function ChildHomeScreen() {
       emotionMapping[selectedEmotion as keyof typeof emotionMapping];
 
     try {
-      const childUserId = await AsyncStorage.getItem('childUserId');
+      const childUserId = await AsyncStorage.getItem('CHILD_USER_ID');
 
       if (!childUserId) {
         Alert.alert('오류', '로그인 정보가 없습니다.');
         return;
       }
 
-      const headers = new Headers();
-      headers.append('Content-Type', 'application/json'); // ✅ Postman 명세에 따라 X-User-Id 헤더에 아이디 담기
-      headers.append('X-User-Id', childUserId);
+      const headers = {
+        'Content-Type': 'application/json', // ✅ 2. Postman 명세에 따라 X-User-Id 헤더 사용
+        'X-User-Id': childUserId,
+      };
 
-      const response = await fetch('http://3.39.122.126:8080/api/moods', {
+      const response = await fetch(`${BASE_URL}/api/moods`, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
-          userId: parseInt(childUserId), // ✅ userId 상태 변수를 사용
+          // Body에는 userId (Postman 명세)
+          userId: parseInt(childUserId),
           reason: emotionReason,
           moodTypeName: moodTypeName,
         }),
@@ -134,11 +141,10 @@ export default function ChildHomeScreen() {
 
   // ✅ 컴포넌트 마운트 시 userId를 가져와 상태에 저장
   useEffect(() => {
-    const loadUserId = async () => {
-      const storedUserId = await AsyncStorage.getItem('userId');
-      setUserId(storedUserId);
+    const checkUserId = async () => {
+      await AsyncStorage.getItem('CHILD_USER_ID');
     };
-    loadUserId();
+    checkUserId();
   }, []);
 
   return (
@@ -229,14 +235,20 @@ export default function ChildHomeScreen() {
                   <TouchableOpacity
                     key={idx}
                     style={[
-                      styles.emotionButton,
+                      styles.emotionImageButton,
                       isSelected && styles.emotionButtonSelected,
                     ]}
                     onPress={() => setSelectedEmotion(emotion)}
                   >
+                    <Image
+                      source={
+                        emotionIcons[emotion as keyof typeof emotionIcons]
+                      }
+                      style={styles.emotionIcon}
+                    />
                     <Text
                       style={[
-                        styles.emotionText,
+                        styles.emotionLabel,
                         isSelected && styles.emotionTextSelected,
                       ]}
                     >
@@ -392,22 +404,40 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
   },
-  emotionButton: {
-    backgroundColor: '#fdecd7',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+  emotionTextSelected: {
+    color: '#fff',
+  },
+  emotionImageButton: {
+    backgroundColor: '#fff8f0', // 배경색을 폼 배경과 다른 밝은 색으로
+    width: '22%', // 4개 버튼이 한 줄에 들어가도록 너비 조정
+    aspectRatio: 1, // 정사각형 유지
+    borderRadius: 15,
     margin: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 5,
   },
   emotionButtonSelected: {
     backgroundColor: '#FF9D00',
-  },
-  emotionText: {
+    borderWidth: 2,
+    borderColor: '#fff',
+  }, // ✅ 6. 이모티콘 이미지 스타일 정의
+
+  emotionIcon: {
+    width: '70%',
+    height: '70%',
+    resizeMode: 'contain',
+    marginBottom: 2,
+  }, // ✅ 7. 감정 레이블 텍스트 스타일 정의
+
+  emotionLabel: {
     fontFamily: 'Jua',
-    fontSize: 18,
-    color: '#333',
+    fontSize: 13,
+    color: '#555',
+    position: 'absolute', // 이미지를 덮지 않도록 아래에 배치
+    bottom: 5,
   },
-  emotionTextSelected: {
+  emotionLabelSelected: {
     color: '#fff',
   },
   separator: {
