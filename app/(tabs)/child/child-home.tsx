@@ -400,19 +400,19 @@ const styles = StyleSheet.create({
   emotionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 5,
   },
   emotionTextSelected: {
     color: '#fff',
   },
   emotionImageButton: {
     backgroundColor: '#fff8f0', // 배경색을 폼 배경과 다른 밝은 색으로
-    width: '22%', // 4개 버튼이 한 줄에 들어가도록 너비 조정
+    width: '48%', // 4개 버튼이 한 줄에 들어가도록 너비 조정
     aspectRatio: 1, // 정사각형 유지
     borderRadius: 15,
-    margin: 5,
+    marginVertical: 5,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 5,
@@ -424,8 +424,8 @@ const styles = StyleSheet.create({
   }, // ✅ 6. 이모티콘 이미지 스타일 정의
 
   emotionIcon: {
-    width: '70%',
-    height: '70%',
+    width: '65%',
+    height: '65%',
     resizeMode: 'contain',
     marginBottom: 2,
   }, // ✅ 7. 감정 레이블 텍스트 스타일 정의
@@ -434,8 +434,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Jua',
     fontSize: 13,
     color: '#555',
-    position: 'absolute', // 이미지를 덮지 않도록 아래에 배치
-    bottom: 5,
   },
   emotionLabelSelected: {
     color: '#fff',
@@ -444,13 +442,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 1,
     backgroundColor: '#ccc',
-    marginVertical: 15,
+    marginTop: 5, // 👈 marginVertical 15에서 marginTop 5로 축소
+    marginBottom: 15,
   },
   popupSubTitle: {
     fontFamily: 'Jua',
     fontSize: 20,
     color: '#333',
-    marginBottom: 10,
+    marginTop: 5,
+    marginBottom: 15,
     textAlign: 'center',
     alignSelf: 'center',
     width: '100%',
