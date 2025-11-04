@@ -110,7 +110,7 @@ export default function ParentMyPage() {
 
     try {
       // Postman 명세: POST /child
-      const response = await fetch(`${BASE_URL}/child`, {
+      const response = await fetch(`${BASE_URL}/user/child`, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(form), // form 데이터를 그대로 전송
