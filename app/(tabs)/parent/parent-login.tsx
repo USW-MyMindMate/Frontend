@@ -25,7 +25,7 @@ export default function ParentLoginScreen() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: account,
+          account: account,
           password: password,
         }),
       });

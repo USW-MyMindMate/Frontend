@@ -14,16 +14,19 @@ import {
   View,
 } from 'react-native';
 
-const children = [
-  { name: '이서연', userId: '1' },
-  { name: '김하윤', userId: '2' },
-  { name: '박지후', userId: '3' },
-];
-
 const BASE_URL = 'http://localhost:8080'; // 🚨 IP 주소 수정 필요
 
+interface ChildInfo {
+  name: string;
+  uniqueId: string; // API URL에서 사용할 ID로 가정합니다.
+  userId: string; // 기존 코드의 userId와 동일한 역할을 하도록 필드 추가
+  // ... 기타 필드 (birthYear, birthMonth, etc.)
+}
+
 export default function ParentHome() {
-  const [selectedChild, setSelectedChild] = useState(children[0]);
+  // ✅ children과 selectedChild를 state로 변경
+  const [children, setChildren] = useState<any[]>([]);
+  const [selectedChild, setSelectedChild] = useState<any | null>(null);
   const [selectedChildIndex, setSelectedChildIndex] = useState(0);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -34,6 +37,163 @@ export default function ParentHome() {
   const [routineLogs, setRoutineLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const router = useRouter();
+
+  const getAuthHeaders = useCallback(async () => {
+    const parentUserId = await AsyncStorage.getItem('PARENT_USER_ID');
+    if (!parentUserId) {
+      router.push('/parent/parent-login'); // ✅ router 바로 사용
+      return null;
+    }
+    return {
+      'Content-Type': 'application/json',
+      'X-User-Id': parentUserId,
+    };
+  }, [router]);
+
+  // 자녀 목록 조회 및 상태 초기화 함수 (ParentMyPage와 동일한 API 사용)
+  const fetchChildren = useCallback(async () => {
+    try {
+      const headers = await getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`${BASE_URL}/child/parent`, {
+        method: 'GET',
+        headers: headers,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        setChildren(data);
+
+        if (data.length > 0) {
+          // 첫 번째 자녀를 기본 선택
+          setSelectedChild(data[0]);
+          setSelectedChildIndex(0);
+        } else {
+          setSelectedChild(null);
+          Alert.alert('알림', '등록된 자녀 정보가 없습니다.');
+        }
+      } else {
+        Alert.alert('오류', '자녀 목록을 불러오는 데 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('자녀 목록 조회 오류:', err);
+      Alert.alert('에러', '네트워크 오류가 발생했습니다.');
+    }
+  }, [router, getAuthHeaders]);
+
+  // 컴포넌트 마운트 시 자녀 목록 조회
+  useEffect(() => {
+    fetchChildren();
+  }, [fetchChildren]); // 루틴 조회 시 selectedChild.userId를 사용 (API 응답 데이터에 userId 필드가 있다고 가정)
+
+  const fetchRoutines = useCallback(async () => {
+    if (!selectedChild || !selectedChild.userId) return; // ✅ selectedChild가 설정되지 않았으면 리턴
+
+    setLoading(true);
+    setError(null);
+    try {
+      const headers = await getAuthHeaders();
+      if (!headers) {
+        throw new Error('로그인 정보가 없습니다. 다시 로그인해 주세요.');
+      }
+
+      const response = await fetch(
+        `${BASE_URL}/api/routines/user/${selectedChild.userId}`, // selectedChild.userId 사용
+        {
+          method: 'GET',
+          headers: headers,
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setRoutineList(data);
+      } else {
+        throw new Error('루틴 정보를 불러오는 데 실패했습니다.');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('알 수 없는 오류가 발생했습니다.');
+      }
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedChild, getAuthHeaders]);
+
+  // 루틴 로그 조회 시 selectedChild.userId를 사용
+  const fetchRoutineLogs = useCallback(async () => {
+    if (!selectedChild || !selectedChild.userId) return; // ✅ selectedChild가 설정되지 않았으면 리턴
+
+    try {
+      const headers = await getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(
+        `${BASE_URL}/api/routine-logs/user/${selectedChild.userId}`, // selectedChild.userId 사용
+        {
+          method: 'GET',
+          headers: headers,
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setRoutineLogs(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [selectedChild, getAuthHeaders]); // ✅ selectedChild가 변경될 때마다 호출되도록 설정
+
+  const handleRoutineCheck = async (
+    routineId: number,
+    isCompleted: boolean
+  ) => {
+    if (!selectedChild || !selectedChild.userId) return; // ✅ selectedChild 확인
+
+    try {
+      const headers = await getAuthHeaders();
+
+      if (!headers) {
+        Alert.alert('알림', '로그인 정보가 없습니다. 다시 로그인해 주세요.');
+        return;
+      }
+
+      const response = await fetch(`${BASE_URL}/api/routine-logs`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          routineId,
+          userId: selectedChild.userId, // selectedChild.userId 사용
+          isCompleted,
+        }),
+      });
+
+      if (response.ok) {
+        fetchRoutineLogs();
+      } else {
+        Alert.alert('오류', '루틴 상태 업데이트에 실패했습니다.');
+      }
+    } catch (err) {
+      Alert.alert('에러', '네트워크 오류.');
+      console.error(err);
+    }
+  };
+
+  // ✅ selectedChild가 변경될 때마다 루틴/로그를 다시 불러옵니다.
+  useEffect(() => {
+    if (selectedChild) {
+      fetchRoutines();
+      fetchRoutineLogs();
+    }
+  }, [selectedChild, fetchRoutines, fetchRoutineLogs]);
 
   const addRoutine = () => {
     setRoutineList([
@@ -54,6 +214,13 @@ export default function ParentHome() {
     setRoutineList(updated);
   };
 
+  const isRoutineCompleted = (routineId: number) => {
+    return routineLogs.some(
+      (log) => log.routineId === routineId && log.isCompleted
+    );
+  };
+
+  // 템플릿 데이터는 그대로 유지합니다.
   const emotionLogs = [
     { time: '오전 10:00', emotion: '슬픔', note: '밥이 맛없었다' },
     { time: '오후 12:00', emotion: '행복', note: '' },
@@ -65,120 +232,6 @@ export default function ParentHome() {
     { emotion: '화나요', color: '#FF0000', count: 2 },
     { emotion: '아파요', color: '#000000', count: 2 },
   ];
-
-  const router = useRouter();
-
-  const fetchRoutines = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const parentUserId = await AsyncStorage.getItem('PARENT_USER_ID');
-      if (!parentUserId) {
-        throw new Error('로그인 정보가 없습니다. 다시 로그인해 주세요.');
-      }
-
-      const response = await fetch(
-        `${BASE_URL}/api/routines/user/${selectedChild.userId}`, // ✅ URL 수정
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-User-Id': parentUserId,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setRoutineList(data);
-      } else {
-        throw new Error('루틴 정보를 불러오는 데 실패했습니다.');
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('알 수 없는 오류가 발생했습니다.');
-      }
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedChild]);
-
-  const fetchRoutineLogs = useCallback(async () => {
-    try {
-      const parentUserId = await AsyncStorage.getItem('PARENT_USER_ID');
-      if (!parentUserId) return;
-
-      const response = await fetch(
-        `${BASE_URL}/api/routine-logs/user/${selectedChild.userId}`, // ✅ URL 수정
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-User-Id': parentUserId,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setRoutineLogs(data);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }, [selectedChild]);
-
-  const handleRoutineCheck = async (
-    routineId: number,
-    isCompleted: boolean
-  ) => {
-    try {
-      const parentUserId = await AsyncStorage.getItem('PPARENT_USER_ID');
-      if (!parentUserId) {
-        Alert.alert('알림', '로그인 정보가 없습니다. 다시 로그인해 주세요.');
-        return;
-      }
-
-      const response = await fetch(
-        `${BASE_URL}/api/routine-logs`, // ✅ URL 수정
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json', // ✅ 2. Cookie 헤더 대신 X-Parent-Account 헤더 사용
-            'X-User-Id': parentUserId,
-          },
-          body: JSON.stringify({
-            routineId,
-            userId: selectedChild.userId,
-            isCompleted,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        fetchRoutineLogs();
-      } else {
-        Alert.alert('오류', '루틴 상태 업데이트에 실패했습니다.');
-      }
-    } catch (err) {
-      Alert.alert('에러', '네트워크 오류.');
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchRoutines();
-    fetchRoutineLogs();
-  }, [selectedChildIndex, fetchRoutines, fetchRoutineLogs]);
-
-  const isRoutineCompleted = (routineId: number) => {
-    return routineLogs.some(
-      (log) => log.routineId === routineId && log.isCompleted
-    );
-  };
 
   if (isEditPage) {
     return (
@@ -322,7 +375,7 @@ export default function ParentHome() {
         <View style={styles.logList}>
           {emotionLogs.map((log, index) => (
             <Text key={index} style={styles.boxTitle}>
-              {log.time} ({selectedChild.name} - {log.emotion}) {log.note}
+              {log.time} ({selectedChild?.name} - {log.emotion}) {log.note}
             </Text>
           ))}
         </View>

@@ -1,8 +1,9 @@
 import CustomDropdown from '@/components/CustomDropdown'; // 상단 import 추가
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -23,6 +24,19 @@ interface ChildInfo {
   uniqueId: string;
 }
 
+const getAuthHeaders = async () => {
+  const parentUserId = await AsyncStorage.getItem('PARENT_USER_ID');
+  if (!parentUserId) {
+    // 로그인 정보가 없으면 로그인 화면으로 이동
+    router.push('/parent/parent-login');
+    return null;
+  }
+  return {
+    'Content-Type': 'application/json',
+    'X-User-Id': parentUserId, // Postman 명세에 따른 부모 인증 헤더
+  };
+};
+
 export default function ParentMyPage() {
   const [children, setChildren] = useState<ChildInfo[]>([]);
   const [selectedChildIndex, setSelectedChildIndex] = useState<number | null>(
@@ -38,40 +52,135 @@ export default function ParentMyPage() {
     uniqueId: '',
   });
 
-  const handleCreate = () => {
+  const [duplicationChecked, setDuplicationChecked] = useState(false);
+
+  // ✅ [추가] 자녀 목록 조회 함수
+  const fetchChildren = useCallback(async () => {
+    const headers = await getAuthHeaders();
+    if (!headers) return;
+
+    try {
+      // Postman 명세: GET /child/parent
+      const response = await fetch(`${BASE_URL}/child/parent`, {
+        method: 'GET',
+        headers: headers,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChildren(data); // 로컬 상태 업데이트
+
+        if (data.length > 0) {
+          // 자녀가 있다면 첫 번째 자녀를 기본 선택하고 폼에 데이터를 채움
+          setSelectedChildIndex(0);
+          setForm(data[0]);
+          setMode('view'); // 조회 모드로 시작
+        } else {
+          // 자녀가 없으면 생성 모드로 자동 전환
+          setMode('create');
+        }
+      } else {
+        Alert.alert('오류', '자녀 목록을 불러오는 데 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('자녀 목록 조회 오류:', error);
+      Alert.alert('에러', '네트워크 오류가 발생했습니다.');
+    }
+  }, []);
+
+  // ✅ [추가] 컴포넌트 마운트 시 자녀 목록 조회
+  useEffect(() => {
+    fetchChildren();
+  }, [fetchChildren]);
+  // ----------------------------------------------------
+
+  const handleCreate = async () => {
     if (
       !form.name ||
       !form.birthYear ||
       !form.birthMonth ||
       !form.birthDay ||
       !form.uniqueId
-    )
-      return;
-    setChildren([...children, form]);
-    setForm({
-      name: '',
-      birthYear: '',
-      birthMonth: '',
-      birthDay: '',
-      uniqueId: '',
-    });
-    setSelectedChildIndex(children.length);
-    setMode('view');
-    setDuplicationChecked(false);
-  };
+    ) {
+      return Alert.alert('알림', '모든 정보를 입력해 주세요.');
+    }
 
-  const handleEditComplete = () => {
+    const headers = await getAuthHeaders();
+    if (!headers) return; // 인증 실패 시 중단
+
+    try {
+      // Postman 명세: POST /child
+      const response = await fetch(`${BASE_URL}/child`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(form), // form 데이터를 그대로 전송
+      });
+
+      const data = await response.json(); // 서버 응답 데이터
+
+      if (response.ok) {
+        // 생성 성공 후 목록을 다시 불러와 상태를 업데이트하는 것이 가장 확실
+        await fetchChildren();
+
+        setForm({
+          // 폼 초기화
+          name: '',
+          birthYear: '',
+          birthMonth: '',
+          birthDay: '',
+          uniqueId: '',
+        });
+        setDuplicationChecked(false);
+        Alert.alert(
+          '성공',
+          data.message || '자녀 정보가 성공적으로 생성되었습니다.'
+        );
+      } else {
+        Alert.alert('실패', data.message || '자녀 생성에 실패했습니다.');
+      }
+    } catch (error) {
+      Alert.alert('에러', '네트워크 오류가 발생했습니다.');
+      console.error(error);
+    }
+  }; // ---------------------------------------------------- // ✅ 2. handleEditComplete 함수 수정 (자녀 정보 수정 - PUT /child/{id}) // ----------------------------------------------------
+
+  const handleEditComplete = async () => {
     if (selectedChildIndex === null) return;
-    const updated = [...children];
-    updated[selectedChildIndex] = form;
-    setChildren(updated);
-    setMode('view');
-  };
 
-  const [duplicationChecked, setDuplicationChecked] = useState(false);
+    const headers = await getAuthHeaders();
+    if (!headers) return; // 인증 실패 시 중단 // 수정 API는 보통 자녀의 고유 ID를 URL에 포함합니다. (uniqueId를 ID로 가정)
+
+    const childId = form.uniqueId;
+
+    try {
+      // Postman 명세: PUT /child/{childId}
+      const response = await fetch(`${BASE_URL}/child/${childId}`, {
+        method: 'PUT',
+        headers: headers,
+        body: JSON.stringify(form),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // 수정 성공 후 목록을 다시 불러와 상태를 업데이트하는 것이 가장 확실합니다.
+        await fetchChildren();
+        setMode('view');
+        Alert.alert(
+          '성공',
+          data.message || '자녀 정보가 성공적으로 수정되었습니다.'
+        );
+      } else {
+        Alert.alert('실패', data.message || '자녀 수정에 실패했습니다.');
+      }
+    } catch (error) {
+      Alert.alert('에러', '네트워크 오류가 발생했습니다.');
+      console.error(error);
+    }
+  };
 
   const currentChild =
-    selectedChildIndex !== null ? children[selectedChildIndex] : null;
+    selectedChildIndex !== null ? children[selectedChildIndex] : null; // ---------------------------------------------------- // ✅ 3. handleLogout 함수 수정 (X-User-Id 인증 적용) // ----------------------------------------------------
 
   const renderChildInfoForm = (isEdit: boolean, isNew: boolean) => (
     <View style={styles.infoBox}>
@@ -270,7 +379,10 @@ export default function ParentMyPage() {
         {mode === 'edit' && renderChildInfoForm(true, false)}
       </ScrollView>
       <View style={styles.bottomButtons}>
-        <TouchableOpacity style={styles.homeButton}>
+        <TouchableOpacity
+          style={styles.homeButton}
+          onPress={() => router.push('/parent/parent-home')}
+        >
           <Image
             source={require('@/assets/images/home.png')}
             style={{ width: 80, height: 80, marginTop: 30 }}
