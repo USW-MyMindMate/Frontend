@@ -53,7 +53,8 @@ export default function ParentSignUp() {
         },
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : { message: response.statusText };
 
       if (response.ok) {
         setEmailSent(true);

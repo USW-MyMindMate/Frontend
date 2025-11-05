@@ -61,7 +61,7 @@ export default function ParentMyPage() {
 
     try {
       // Postman 명세: GET /child/parent
-      const response = await fetch(`${BASE_URL}/child/parent`, {
+      const response = await fetch(`${BASE_URL}/user/find-ChildByParent`, {
         method: 'GET',
         headers: headers,
       });
@@ -110,7 +110,7 @@ export default function ParentMyPage() {
 
     try {
       // Postman 명세: POST /child
-      const response = await fetch(`${BASE_URL}/user/child`, {
+      const response = await fetch(`${BASE_URL}/user/child-profile`, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(form), // form 데이터를 그대로 전송

@@ -35,6 +35,10 @@ export default function ParentHome() {
 
   const [routineList, setRoutineList] = useState<any[]>([]);
   const [routineLogs, setRoutineLogs] = useState<any[]>([]);
+
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [graphData, setGraphData] = useState<any | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,7 +62,7 @@ export default function ParentHome() {
       const headers = await getAuthHeaders();
       if (!headers) return;
 
-      const response = await fetch(`${BASE_URL}/child/parent`, {
+      const response = await fetch(`${BASE_URL}/user/find-ChildByParent`, {
         method: 'GET',
         headers: headers,
       });
@@ -127,16 +131,16 @@ export default function ParentHome() {
     }
   }, [selectedChild, getAuthHeaders]);
 
-  // 루틴 로그 조회 시 selectedChild.userId를 사용
+  // ✅ [API] 루틴 로그 조회
   const fetchRoutineLogs = useCallback(async () => {
-    if (!selectedChild || !selectedChild.userId) return; // ✅ selectedChild가 설정되지 않았으면 리턴
+    if (!selectedChild || !selectedChild.userId) return;
 
     try {
       const headers = await getAuthHeaders();
       if (!headers) return;
 
       const response = await fetch(
-        `${BASE_URL}/api/routine-logs/user/${selectedChild.userId}`, // selectedChild.userId 사용
+        `${BASE_URL}/api/routine-logs/user/${selectedChild.userId}`,
         {
           method: 'GET',
           headers: headers,
@@ -150,7 +154,61 @@ export default function ParentHome() {
     } catch (err) {
       console.error(err);
     }
-  }, [selectedChild, getAuthHeaders]); // ✅ selectedChild가 변경될 때마다 호출되도록 설정
+  }, [selectedChild, getAuthHeaders]); // ✅ [API 추가] 활동 추천 목록 조회
+
+  const fetchRecentActivities = useCallback(async () => {
+    if (!selectedChild || !selectedChild.userId) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      if (!headers) return; // Postman 명세: GET /api/activities/recommendation/recent/{childUserId}
+
+      const response = await fetch(
+        `${BASE_URL}/api/moods/recommend?moodTypeName=SAD`,
+        {
+          method: 'GET',
+          headers: headers,
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setRecentActivities(data);
+      } else {
+        setRecentActivities([]);
+        setError('활동 추천 목록 로드 실패');
+      }
+    } catch (error) {
+      console.error('활동 추천 목록 조회 오류:', error);
+    }
+  }, [selectedChild, getAuthHeaders]); // ✅ [API 추가] 감정 그래프 데이터 조회
+
+  const fetchGraphData = useCallback(async () => {
+    if (!selectedChild || !selectedChild.userId) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      if (!headers) return; // Postman 명세: GET /api/moods/dashboard/{childUserId}
+
+      const response = await fetch(
+        `${BASE_URL}/api/moods/dashboard/${selectedChild.userId}`,
+        {
+          method: 'GET',
+          headers: headers,
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setGraphData(data); // 그래프 데이터 저장
+      } else {
+        setGraphData(null);
+        setError('감정 그래프 데이터 로드 실패');
+      }
+    } catch (error) {
+      console.error('감정 그래프 데이터 조회 오류:', error);
+    }
+  }, [selectedChild, getAuthHeaders]);
 
   const handleRoutineCheck = async (
     routineId: number,
@@ -192,8 +250,16 @@ export default function ParentHome() {
     if (selectedChild) {
       fetchRoutines();
       fetchRoutineLogs();
+      fetchRecentActivities(); // ✅ 새로운 함수 호출
+      fetchGraphData();
     }
-  }, [selectedChild, fetchRoutines, fetchRoutineLogs]);
+  }, [
+    selectedChild,
+    fetchRoutines,
+    fetchRoutineLogs,
+    fetchRecentActivities,
+    fetchGraphData,
+  ]);
 
   const addRoutine = () => {
     setRoutineList([
@@ -373,17 +439,27 @@ export default function ParentHome() {
 
       <View style={styles.tryBox}>
         <View style={styles.logList}>
-          {emotionLogs.map((log, index) => (
-            <Text key={index} style={styles.boxTitle}>
-              {log.time} ({selectedChild?.name} - {log.emotion}) {log.note}
-            </Text>
-          ))}
+                   {' '}
+          {/* ✅ 기존 emotionLogs 임시 데이터 대신 recentActivities 사용 */}   
+               {' '}
+          {recentActivities.length > 0 ? (
+            recentActivities.map((activity, index) => (
+              <Text key={index} style={styles.boxTitle}>
+                                -{' '}
+                {activity.recommendationText || '활동 정보 없음'}             {' '}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.loadingText}>최근 추천 활동이 없습니다.</Text>
+          )}
+                 {' '}
         </View>
+               {' '}
         <TouchableOpacity
           style={styles.graphButton}
           onPress={() => setShowGraphPopup(true)}
         >
-          <Text style={styles.buttonTextLarge}>그래프</Text>
+                    <Text style={styles.buttonTextLarge}>그래프</Text>       {' '}
         </TouchableOpacity>
       </View>
 
@@ -393,52 +469,73 @@ export default function ParentHome() {
         animationType="slide"
         onRequestClose={() => setShowGraphPopup(false)}
       >
+               {' '}
         <View style={styles.modalBackground}>
+                   {' '}
           <View style={styles.modalContainer}>
-            <Text style={styles.graphTitle}>최근 감정표현 5개</Text>
+                        <Text style={styles.graphTitle}>최근 감정표현 5개</Text>
+                       {' '}
             <View style={styles.recentEmotionsContainer}>
-              {recentEmotions.map((emotion, index) => (
-                <View key={index} style={styles.recentEmotionItem}>
-                  <Text
-                    style={{
-                      fontFamily: 'Jua',
-                      color: '#333',
-                      fontSize: 18,
-                      flex: 1,
-                    }}
-                  >
-                    {emotion.emotion}
-                  </Text>
-                  <View
-                    style={[
-                      styles.graphBar,
-                      {
-                        backgroundColor: emotion.color,
-                        width: emotion.count * 40,
-                      },
-                    ]}
-                  />
-                  <Text
-                    style={{
-                      fontFamily: 'Jua',
-                      color: '#333',
-                      fontSize: 16,
-                      marginLeft: 10,
-                    }}
-                  >
-                    {emotion.count}
-                  </Text>
-                </View>
-              ))}
+                            {/* ✅ API에서 불러온 graphData 사용 */}           
+               {' '}
+              {graphData && graphData.length > 0 ? (
+                graphData.map((emotion: any, index: number) => (
+                  <View key={index} style={styles.recentEmotionItem}>
+                                       {' '}
+                    <Text
+                      style={{
+                        fontFamily: 'Jua',
+                        color: '#333',
+                        fontSize: 18,
+                        flex: 1,
+                      }}
+                    >
+                                            {emotion.emotion}                   {' '}
+                    </Text>
+                                       {' '}
+                    <View
+                      style={[
+                        styles.graphBar,
+                        {
+                          // 색상과 너비는 API 데이터 구조에 맞게 조정 필요
+                          backgroundColor: emotion.color || '#FF9D00',
+                          width: (emotion.count || 0) * 40, // count 필드 사용
+                        },
+                      ]}
+                    />
+                                       {' '}
+                    <Text
+                      style={{
+                        fontFamily: 'Jua',
+                        color: '#333',
+                        fontSize: 16,
+                        marginLeft: 10,
+                      }}
+                    >
+                                            {emotion.count || 0}               
+                         {' '}
+                    </Text>
+                                     {' '}
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.loadingText}>감정 데이터가 없습니다.</Text>
+              )}
+                         {' '}
             </View>
+                       {' '}
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setShowGraphPopup(false)}
             >
-              <Text style={styles.closeButtonText}>닫기</Text>
+                            <Text style={styles.closeButtonText}>닫기</Text>   
+                     {' '}
             </TouchableOpacity>
+                     {' '}
           </View>
+                 {' '}
         </View>
+             {' '}
       </Modal>
 
       <View style={styles.bottomButtons}>
