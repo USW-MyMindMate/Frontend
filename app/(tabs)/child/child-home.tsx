@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -47,43 +47,6 @@ export default function ChildHomeScreen() {
     setCheckedItems(newChecked);
   };
 
-  const fetchRecommendations = useCallback(async (moodTypeName: string) => {
-    setLoading(true);
-    try {
-      const childUserId = await AsyncStorage.getItem('CHILD_USER_ID');
-
-      if (!childUserId) {
-        throw new Error('아이디 정보가 없습니다.');
-      }
-
-      const headers = {
-        'Content-Type': 'application/json', // ✅ 2. Postman 명세에 따라 X-User-Id 헤더 사용
-        'X-User-Id': childUserId,
-      };
-
-      const response = await fetch(
-        `${BASE_URL}/api/moods/recommend?moodTypeName=${moodTypeName}`,
-        {
-          method: 'GET',
-          headers: headers,
-        }
-      );
-
-      if (response.ok) {
-        const text = await response.text();
-        const data = text ? JSON.parse(text) : [];
-        setRecommendations(data);
-      } else {
-        setRecommendations(['추천 활동을 가져오는데 실패했습니다.']);
-      }
-    } catch (err: unknown) {
-      setRecommendations(['네트워크 오류로 추천 활동을 가져올 수 없습니다.']);
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const handleDoneMood = async () => {
     if (!selectedEmotion) {
       Alert.alert('알림', '감정을 먼저 선택해주세요!');
@@ -106,7 +69,7 @@ export default function ChildHomeScreen() {
 
       const headers = {
         'Content-Type': 'application/json', // ✅ 2. Postman 명세에 따라 X-User-Id 헤더 사용
-        'X-User-Id': childUserId,
+        //'X-User-Id': childUserId,
       };
 
       const response = await fetch(`${BASE_URL}/api/moods`, {
@@ -121,7 +84,16 @@ export default function ChildHomeScreen() {
       });
 
       if (response.ok) {
-        await fetchRecommendations(moodTypeName);
+        const data = await response.json();
+        // 3. 감정 기록 완료 후, 서버 응답에서 'recommendation' 필드를 바로 사용
+
+        // recommendation이 문자열 하나일 경우 배열로 만들어 상태에 저장
+        if (data.recommendation) {
+          setRecommendations([data.recommendation]);
+        } else {
+          setRecommendations([]);
+        }
+
         setIsPopupVisible(false);
       } else {
         const errorData = await response.json();
