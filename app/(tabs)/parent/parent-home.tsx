@@ -48,7 +48,6 @@ export default function ParentHome() {
   const [selectedChild, setSelectedChild] = useState<any | null>(null);
   const [selectedChildIndex, setSelectedChildIndex] = useState(0);
 
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [isEditPage, setIsEditPage] = useState(false);
 
@@ -422,12 +421,12 @@ export default function ParentHome() {
       }
 
       const response = await fetch(`${BASE_URL}/api/routine-logs`, {
-        method: 'POST',
+        method: 'PUT',
         headers: headers,
         body: JSON.stringify({
-          routineId,
-          userId: selectedChild.userId, // selectedChild.userId 사용
-          isCompleted,
+          routineId: routineId,
+          // userId: selectedChild.userId, // ❌ Body에서 userId 제거 (명세에 따라)
+          isCompleted: isCompleted, // ✅ isCompleted 상태 전송
         }),
       });
 
@@ -499,34 +498,51 @@ export default function ParentHome() {
         </Text>
 
         <View style={styles.editBox}>
+                   {' '}
           <View style={styles.routineHeader}>
+                       {' '}
             <CustomDropdown
               options={children.map((c) => c.name)}
               selectedIndex={selectedChildIndex}
-              onSelect={(index) => setSelectedChildIndex(index)}
+              onSelect={(index) => {
+                setSelectedChildIndex(index);
+                // 드롭다운 변경 시 tempRoutineList도 다시 로드해야 하지만,
+                // 현재는 임시로 index만 바꿈
+              }}
             />
-            <Text style={styles.routineTitle}>{`'s routine`}</Text>
+                        <Text style={styles.routineTitle}>{`'s routine`}</Text> 
+                   {' '}
           </View>
-
-          {routineList.map((item, index) => (
-            <View key={index} style={styles.editRoutineRow}>
-              <TextInput
-                style={styles.editInputBox}
-                value={item.title}
-                onChangeText={(text) => updateRoutine(index, text)}
-              />
-              <TouchableOpacity
-                onPress={() => removeRoutine(index)}
-                style={styles.removeButton}
-              >
-                <Text style={styles.removeText}>X</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-
+          {/* ✅ [수정] 스크롤 뷰를 사용하여 tempRoutineList 렌더링 */}
+          <ScrollView style={styles.editRoutineScroll}>
+                     {' '}
+            {tempRoutineList.map((item, index) => (
+              <View key={item.id || index} style={styles.editRoutineRow}>
+                               {' '}
+                <TextInput
+                  style={styles.editInputBox}
+                  value={item.title}
+                  onChangeText={(text) => updateRoutine(index, text)}
+                />
+                               {' '}
+                {/* 🚨 [주의] 루틴 ID, Time, DayOfWeek 필드는 현재 편집 UI에 빠져있음 */}
+                               {' '}
+                <TouchableOpacity
+                  onPress={() => removeRoutine(index)}
+                  style={styles.removeButton}
+                >
+                                    <Text style={styles.removeText}>X</Text>   
+                             {' '}
+                </TouchableOpacity>
+                             {' '}
+              </View>
+            ))}
+          </ScrollView>
+                   {' '}
           <TouchableOpacity onPress={addRoutine} style={styles.addButton}>
-            <Text style={styles.addText}>+</Text>
+                        <Text style={styles.addText}>+</Text>         {' '}
           </TouchableOpacity>
+                 {' '}
         </View>
 
         <TouchableOpacity
@@ -958,6 +974,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     width: '80%',
+    overflow: 'hidden',
   },
   loadingText: {
     fontFamily: 'Jua',
@@ -979,5 +996,10 @@ const styles = StyleSheet.create({
   boxTitleCompleted: {
     textDecorationLine: 'line-through',
     color: '#888',
+  },
+  editRoutineScroll: {
+    maxHeight: 300,
+    marginBottom: 10,
+    paddingVertical: 5,
   },
 });

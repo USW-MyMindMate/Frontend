@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -33,13 +34,19 @@ export default function ChildHomeScreen() {
     false,
     false,
   ]);
+  const [routines, setRoutines] = useState<any[]>([]);
+
   const [isPopupVisible, setIsPopupVisible] = useState(true);
   const [emotionReason, setEmotionReason] = useState('');
   const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
 
+  const [isMoodRecorded, setIsMoodRecorded] = useState(false);
+
   const [recommendations, setRecommendations] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const router = useRouter();
 
   const toggleCheck = (index: number) => {
     const newChecked = [...checkedItems];
@@ -47,7 +54,58 @@ export default function ChildHomeScreen() {
     setCheckedItems(newChecked);
   };
 
+  const handleShowMood = () => {
+    setIsPopupVisible(true);
+  };
+
+  // ✅ [추가] 루틴 목록을 불러오는 함수
+  const fetchRoutines = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const childUserId = await AsyncStorage.getItem('CHILD_USER_ID');
+      if (!childUserId) {
+        setError('로그인 정보가 없습니다.');
+        return;
+      }
+
+      // 🚨 가정: 아이의 루틴 목록을 조회하는 API 엔드포인트
+      const url = `${BASE_URL}/api/routines?userId=${childUserId}`;
+
+      const response = await fetch(url, { method: 'GET' });
+
+      if (response.ok) {
+        const data = await response.json();
+        const fetchedRoutines = data || [];
+
+        setRoutines(fetchedRoutines);
+
+        // 루틴 개수에 맞춰 checkedItems 상태 초기화 (실제로는 API에서 완료 로그를 가져와야 함)
+        setCheckedItems(new Array(fetchedRoutines.length).fill(false));
+      } else {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || '루틴 목록을 불러오는 데 실패했습니다.'
+        );
+      }
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : '루틴 조회 중 네트워크 오류가 발생했습니다.';
+      setError(errorMessage);
+      console.error('Fetch Routines Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const handleDoneMood = async () => {
+    if (isMoodRecorded) {
+      setIsPopupVisible(false); // 재확인 모드에서는 닫기
+      return;
+    }
+
     if (!selectedEmotion) {
       Alert.alert('알림', '감정을 먼저 선택해주세요!');
       return;
@@ -86,6 +144,8 @@ export default function ChildHomeScreen() {
       if (response.ok) {
         const data = await response.json();
         // 3. 감정 기록 완료 후, 서버 응답에서 'recommendation' 필드를 바로 사용
+        setIsMoodRecorded(true);
+        setIsPopupVisible(false);
 
         // recommendation이 문자열 하나일 경우 배열로 만들어 상태에 저장
         if (data.recommendation) {
@@ -111,13 +171,73 @@ export default function ChildHomeScreen() {
     }
   };
 
+  const handleChildLogout = useCallback(async () => {
+    try {
+      // 1. AsyncStorage에서 아이 계정 정보(childAccount)를 가져옴
+      const childAccount = await AsyncStorage.getItem('CHILD_USER_ID');
+      if (!childAccount) {
+        Alert.alert('오류', '로그인 정보가 없습니다. 앱에서 로그아웃합니다.');
+        await AsyncStorage.removeItem('CHILD_USER_ID');
+        // router.replace('/'); // 메인 또는 로그인 화면으로 이동
+        return;
+      }
+
+      // 2. API 호출: GET /user/child-logout?childAccount=...
+      const url = `${BASE_URL}/user/child-logout?childAccount=${childAccount}`;
+
+      const response = await fetch(url, {
+        method: 'GET', // 명세에 따라 GET 사용
+        // Body가 있지만 GET 요청이라 Query Param으로 처리하는 것이 일반적입니다.
+        // Postman 예시 curl에서 data 부분이 Query Param처럼 동작한다고 가정하고 URL에 포함
+      });
+
+      // 3. 응답 처리
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (e) {
+        // 응답이 JSON이 아닐 수도 있으므로 예외 처리
+        console.warn('Logout response not JSON', e);
+      }
+
+      if (response.ok || response.status === 200) {
+        // 성공 시 로컬 저장소 삭제 및 화면 이동
+        await AsyncStorage.removeItem('CHILD_USER_ID');
+        Alert.alert('로그아웃 성공', data?.message || '로그아웃되었습니다.');
+        router.replace('/'); // 앱 시작 화면이나 로그인 화면으로 이동
+      } else {
+        // 서버에서 오류 응답 (400, 500 등)이 왔을 경우
+        throw new Error(
+          data?.message || '로그아웃 처리에 실패했습니다. 강제 로그아웃합니다.'
+        );
+      }
+    } catch (err: unknown) {
+      // 네트워크 오류 또는 서버 오류 처리
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : '네트워크 문제로 로그아웃 처리 중 오류가 발생했습니다.';
+
+      Alert.alert('로그아웃 오류', errorMessage);
+      console.error(err);
+
+      // 오류 발생 시에도 안전을 위해 로컬 로그인 정보는 삭제하고 이동
+      await AsyncStorage.removeItem('CHILD_USER_ID');
+      router.replace('/');
+    }
+  }, [router]);
+
   // ✅ 컴포넌트 마운트 시 userId를 가져와 상태에 저장
   useEffect(() => {
-    const checkUserId = async () => {
-      await AsyncStorage.getItem('CHILD_USER_ID');
+    const checkAndFetch = async () => {
+      const userId = await AsyncStorage.getItem('CHILD_USER_ID');
+      if (userId) {
+        await fetchRoutines(); // 아이디가 있을 때 루틴 불러오기
+      }
+      // 이전에 있던 checkUserId 로직 대체
     };
-    checkUserId();
-  }, []);
+    checkAndFetch();
+  }, [fetchRoutines]);
 
   return (
     <View style={styles.container}>
@@ -136,26 +256,46 @@ export default function ChildHomeScreen() {
         <Text style={[styles.boxTitle, { fontFamily: 'Jua' }]}>
           오늘의 할 일
         </Text>
-        {[1, 2, 3, 4].map((item, index: number) => (
-          <TouchableOpacity
-            key={item}
-            style={styles.todoItem}
-            onPress={() => toggleCheck(index)}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[
-                styles.checkbox,
-                checkedItems[index] && styles.checkboxChecked,
-              ]}
+
+        {loading && (
+          <Text style={styles.loadingText}>루틴 목록을 불러오는 중...</Text>
+        )}
+
+        {/* ✅ [수정] API에서 가져온 routines 목록 렌더링 */}
+        {!loading &&
+          routines.length > 0 &&
+          routines.map((routine, index: number) => (
+            <TouchableOpacity
+              key={routine.id || index} // API에서 받은 ID를 키로 사용
+              style={styles.todoItem}
+              onPress={() => toggleCheck(index)}
+              activeOpacity={0.7}
             >
-              {checkedItems[index] && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={[styles.todoText, { fontFamily: 'Jua' }]}>
-              할 일 {item}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <View
+                style={[
+                  styles.checkbox,
+                  checkedItems[index] && styles.checkboxChecked,
+                ]}
+              >
+                {checkedItems[index] && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              {/* ✅ 루틴 제목 표시 */}
+              <Text style={[styles.todoText, { fontFamily: 'Jua' }]}>
+                {routine.title || routine.name || `루틴 ${index + 1}`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+        {/* 루틴이 없거나 오류가 있을 때 메시지 표시 */}
+        {!loading && !error && routines.length === 0 && (
+          <Text
+            style={[styles.todoText, { textAlign: 'center', marginTop: 30 }]}
+          >
+            아직 부모님이 등록한 루틴이 없습니다.
+          </Text>
+        )}
+
+        {error && <Text style={styles.errorText}>루틴 오류: {error}</Text>}
       </View>
 
       {/* 이걸 해볼까? */}
@@ -179,14 +319,35 @@ export default function ChildHomeScreen() {
         )}
       </View>
 
-      {/* 홈 아이콘 */}
-      <TouchableOpacity style={styles.homeButton}>
-        <Image
-          source={require('../../../assets/images/home.png')}
-          style={styles.homeIcon}
-          resizeMode="contain"
-        />
-      </TouchableOpacity>
+      <View style={styles.bottomButtons}>
+        {/* 1. 왼쪽: 로그아웃 버튼 */}
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleChildLogout}
+        >
+          <Text style={styles.logoutButtonText}>로그아웃</Text>
+        </TouchableOpacity>
+
+        {/* 3. 오른쪽: 홈 아이콘 */}
+        <TouchableOpacity style={styles.homeButton}>
+          <Image
+            source={require('../../../assets/images/home.png')}
+            style={styles.homeIcon}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+
+        {/* 2. 가운데: 감정 확인 버튼 (요청하신 기능) */}
+        {/* 기록 완료 여부와 관계없이 팝업을 다시 띄울 수 있게 합니다. */}
+        <TouchableOpacity
+          style={styles.viewMoodButton}
+          onPress={handleShowMood}
+        >
+          <Text style={styles.viewMoodButtonText}>
+            오늘의 감정 {!isMoodRecorded ? '기록' : '확인'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* 팝업 오버레이 */}
       {isPopupVisible && (
@@ -210,7 +371,13 @@ export default function ChildHomeScreen() {
                       styles.emotionImageButton,
                       isSelected && styles.emotionButtonSelected,
                     ]}
-                    onPress={() => setSelectedEmotion(emotion)}
+                    onPress={() => {
+                      // ✅ 수정: 기록 후 수정 불가능
+                      if (!isMoodRecorded) {
+                        setSelectedEmotion(emotion);
+                      }
+                    }}
+                    disabled={isMoodRecorded} // ✅ 기록 후 버튼 비활성화
                   >
                     <Image
                       source={
@@ -245,6 +412,7 @@ export default function ChildHomeScreen() {
               placeholder="기분이 이런 이유는..."
               placeholderTextColor="#ccc"
               multiline
+              editable={!isMoodRecorded} // ✅ 수정: 기록 후 수정 불가능
             />
 
             <Text style={styles.popupHint}>꼭 적지 않아도 괜찮아!</Text>
@@ -253,7 +421,9 @@ export default function ChildHomeScreen() {
               style={styles.doneButton}
               onPress={handleDoneMood}
             >
-              <Text style={styles.doneButtonText}>완료</Text>
+              <Text style={styles.doneButtonText}>
+                {isMoodRecorded ? '닫기' : '완료'} {/* ✅ 수정: 텍스트 변경 */}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -332,12 +502,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   homeButton: {
-    alignSelf: 'center',
     padding: 10,
   },
   homeIcon: {
-    width: 80,
-    height: 80,
+    width: 60,
+    height: 60,
   },
   popupOverlay: {
     position: 'absolute',
@@ -475,5 +644,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#555',
     marginBottom: 8,
+  },
+  bottomButtons: {
+    position: 'absolute',
+    bottom: 20,
+    width: '95%',
+    flexDirection: 'row',
+    justifyContent: 'space-around', // 버튼들을 양 끝으로 분산
+    alignItems: 'center',
+  },
+  // ✅ [추가] 로그아웃 버튼 스타일
+  logoutButton: {
+    backgroundColor: '#FFD4AA',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+  logoutButtonText: {
+    fontFamily: 'Jua',
+    fontSize: 16,
+    color: '#333',
+  },
+  viewMoodButton: {
+    backgroundColor: '#B0E0E6', // 새로운 색상 추가
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+  },
+  viewMoodButtonText: {
+    fontFamily: 'Jua',
+    fontSize: 16,
+    color: '#333',
+  },
+  // ✅ [추가] 비활성화된 입력 필드 스타일
+  popupInputDisabled: {
+    backgroundColor: '#f5f5f5',
+    color: '#888',
   },
 });
