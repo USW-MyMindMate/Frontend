@@ -498,9 +498,7 @@ export default function ParentHome() {
         </Text>
 
         <View style={styles.editBox}>
-                   {' '}
           <View style={styles.routineHeader}>
-                       {' '}
             <CustomDropdown
               options={children.map((c) => c.name)}
               selectedIndex={selectedChildIndex}
@@ -510,39 +508,30 @@ export default function ParentHome() {
                 // 현재는 임시로 index만 바꿈
               }}
             />
-                        <Text style={styles.routineTitle}>{`'s routine`}</Text> 
-                   {' '}
+            <Text style={styles.routineTitle}>{`'s routine`}</Text> 
           </View>
           {/* ✅ [수정] 스크롤 뷰를 사용하여 tempRoutineList 렌더링 */}
           <ScrollView style={styles.editRoutineScroll}>
-                     {' '}
             {tempRoutineList.map((item, index) => (
               <View key={item.id || index} style={styles.editRoutineRow}>
-                               {' '}
                 <TextInput
                   style={styles.editInputBox}
                   value={item.title}
                   onChangeText={(text) => updateRoutine(index, text)}
                 />
-                               {' '}
                 {/* 🚨 [주의] 루틴 ID, Time, DayOfWeek 필드는 현재 편집 UI에 빠져있음 */}
-                               {' '}
                 <TouchableOpacity
                   onPress={() => removeRoutine(index)}
                   style={styles.removeButton}
                 >
-                                    <Text style={styles.removeText}>X</Text>   
-                             {' '}
+                  <Text style={styles.removeText}>X</Text>   
                 </TouchableOpacity>
-                             {' '}
               </View>
             ))}
           </ScrollView>
-                   {' '}
           <TouchableOpacity onPress={addRoutine} style={styles.addButton}>
-                        <Text style={styles.addText}>+</Text>         {' '}
+            <Text style={styles.addText}>+</Text>
           </TouchableOpacity>
-                 {' '}
         </View>
 
         <TouchableOpacity
