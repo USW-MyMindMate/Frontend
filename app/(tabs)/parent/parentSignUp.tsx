@@ -15,28 +15,75 @@ import {
 
 const BASE_URL = 'http://localhost:8080'; // 🚨 IP 주소 수정 필요
 
+const INITIAL_TIMER_SECONDS = 180;
+
 export default function ParentSignUp() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
-  const [authVerified, setAuthVerified] = useState(false);
 
+  // 1. 이메일 인증 관련 상태
+  const [email, setEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false); // 이메일 전송 시작 여부
+  const [authVerified, setAuthVerified] = useState(false); // 이메일 인증 완료 여부
+  const [timer, setTimer] = useState(0); // 타이머 초 (180초 시작)
+  const [sendStatus, setSendStatus] = useState(''); // 전송 상태 메시지
+
+  // 2. 아이디 관련 상태
   const [userId, setUserId] = useState('');
   const [idChecked, setIdChecked] = useState(false);
   const [idAvailable, setIdAvailable] = useState(false);
 
+  // 3. 비밀번호 관련 상태
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [passwordMatch, setPasswordMatch] = useState(true);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [passwordConfirmVisible, setPasswordConfirmVisible] = useState(false);
 
-  const [sendStatus, setSendStatus] = useState('');
-  const [isResend, setIsResend] = useState(false);
+  // ----------------------------------------------------
+  // 1. 타이머 로직
+  // ----------------------------------------------------
+  useEffect(() => {
+    let interval: number | null = null;
 
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prevTimer) => prevTimer - 1);
+      }, 1000) as unknown as number;
+    } else if (timer === 0 && emailSent && !authVerified) {
+      // 타이머 종료 시 (인증 시간 만료)
+      if (interval) clearInterval(interval);
+      setSendStatus('인증 시간 만료');
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [timer, emailSent, authVerified]);
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+  };
+
+  // ----------------------------------------------------
+  // 2. 이메일 인증 메일 전송 로직
+  // ----------------------------------------------------
   const sendAuthCode = async () => {
     if (!email.includes('@')) {
       Alert.alert('알림', '유효한 이메일을 입력하세요.');
+      return;
+    }
+
+    const isResend = emailSent && timer === 0;
+
+    if (timer > 0) {
+      Alert.alert(
+        '알림',
+        `잠시 후 ${formatTime(timer)}초 뒤에 재전송할 수 있습니다.`
+      );
       return;
     }
 
@@ -48,9 +95,7 @@ export default function ParentSignUp() {
 
       const response = await fetch(url, {
         method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
       const text = await response.text();
@@ -58,9 +103,9 @@ export default function ParentSignUp() {
 
       if (response.ok) {
         setEmailSent(true);
-        setAuthVerified(true); // 이메일 전송 성공 시 인증 상태를 true로 설정
+        setTimer(INITIAL_TIMER_SECONDS); // 3분 타이머 시작
         setSendStatus(isResend ? '재전송 완료' : '전송 완료');
-        setIsResend(true); // 다음 요청은 재전송으로 설정
+
         Alert.alert(
           '성공',
           data.message || '인증 메일이 전송되었습니다. 이메일을 확인해 주세요.'
@@ -75,34 +120,71 @@ export default function ParentSignUp() {
     }
   };
 
-  // 3초마다 이메일 인증 여부를 확인하는 기존의 useEffect 로직을 제거
-  // 백엔드 명세에 따라 최종 회원가입 시에만 인증 여부를 확인하는 것이 더 효율적입니다.
-  useEffect(() => {
-    // 삭제된 로직
-  }, [emailSent, authVerified, email]);
+  // ----------------------------------------------------
+  // 3. 이메일 인증 확인 로직
+  // ----------------------------------------------------
+  const verifyAuthCode = async () => {
+    if (!emailSent) {
+      Alert.alert('알림', '이메일 인증을 먼저 요청해주세요.');
+      return;
+    }
 
+    try {
+      // GET /user/check-verify?email=...
+      const response = await fetch(
+        `${BASE_URL}/user/check-verify?email=${email}`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.data === true) {
+        setAuthVerified(true);
+        setSendStatus('인증 완료');
+        setTimer(0); // 타이머 중지
+        Alert.alert('성공', data.message || '이메일 인증이 완료되었습니다.');
+      } else {
+        Alert.alert(
+          '오류',
+          data.message || '이메일 인증에 실패했거나, 인증되지 않았습니다.'
+        );
+      }
+    } catch (err) {
+      Alert.alert('에러', '서버에 연결할 수 없습니다.');
+      console.error(err);
+    }
+  };
+
+  // ----------------------------------------------------
+  // ✅ 4. 아이디 중복 확인 로직 (GET, Query Parameter 수정)
+  // ----------------------------------------------------
   const checkIdDuplication = async () => {
     if (userId.length < 4) {
       Alert.alert('알림', '아이디는 4자 이상이어야 합니다.');
       return;
     }
 
-    // 이메일 인증이 완료되지 않았을 경우 중복 확인을 막음
+    if (!email || !email.includes('@')) {
+      Alert.alert('알림', '유효한 이메일을 먼저 입력해주세요.');
+      return;
+    }
+
     if (!authVerified) {
-      Alert.alert('알림', '이메일 인증을 먼저 진행해주세요.');
+      Alert.alert('알림', '이메일 인증을 먼저 완료해주세요.');
       return;
     }
 
     try {
-      const response = await fetch(
-        `${BASE_URL}/user/check-account?account=${userId}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      // 🚨 수정: 아이디와 이메일을 모두 Query Parameter로 전송
+      const url = `${BASE_URL}/user/check-account?account=${userId}&email=${email}`;
+
+      const response = await fetch(url, {
+        method: 'GET', // GET 유지
+        headers: { 'Content-Type': 'application/json' },
+      });
 
       if (response.ok) {
         setIdAvailable(true);
@@ -120,19 +202,35 @@ export default function ParentSignUp() {
     }
   };
 
-  // 비밀번호 일치 확인 로직
+  // 비밀번호 일치 확인 및 ID 변경 시 중복 확인 초기화
   useEffect(() => {
+    // ID가 변경되면 중복 확인 상태 초기화
+    setIdChecked(false);
+    setIdAvailable(false);
     setPasswordMatch(password === passwordConfirm);
-  }, [password, passwordConfirm]);
+  }, [password, passwordConfirm, userId]);
+
+  // ----------------------------------------------------
+  // 5. 회원가입 활성화 조건
+  // ----------------------------------------------------
+  const isPasswordValid =
+    password.length >= 8 &&
+    /\d/.test(password) &&
+    /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
   const canSignUp =
     authVerified &&
     idChecked &&
     idAvailable &&
     passwordMatch &&
+    isPasswordValid &&
+    email.length > 0 &&
+    userId.length > 0 &&
     password.length > 0;
 
-  // 최종 회원가입을 위한 함수 추가
+  // ----------------------------------------------------
+  // 6. 최종 회원가입 로직
+  // ----------------------------------------------------
   const handleSignUp = async () => {
     if (!canSignUp) {
       Alert.alert(
@@ -158,7 +256,6 @@ export default function ParentSignUp() {
 
       if (response.ok) {
         Alert.alert('가입 완료', data.message || '회원가입이 완료되었습니다!');
-        // 성공 시 로그인 화면으로 이동
         router.push('/parent/parent-login');
       } else {
         Alert.alert('오류', data.message || '회원가입에 실패했습니다.');
@@ -186,6 +283,9 @@ export default function ParentSignUp() {
             <Text style={styles.logoLight}>ate</Text>
           </Text>
 
+          {/* ---------------------------------------------------- */}
+          {/* 이메일 인증 섹션 */}
+          {/* ---------------------------------------------------- */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>이메일 생성</Text>
             <TextInput
@@ -193,25 +293,66 @@ export default function ParentSignUp() {
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              editable={!authVerified}
+              editable={!emailSent} // 전송 후에는 수정 불가
               keyboardType="email-address"
               autoCapitalize="none"
               placeholderTextColor="#aaa"
             />
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity style={styles.button} onPress={sendAuthCode}>
-                <Text style={styles.buttonText}>인증</Text>
+
+            <View style={styles.row}>
+              {/* 1. 이메일 인증/재전송 버튼 */}
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  emailSent && timer > 0 && styles.buttonDisabled,
+                ]}
+                onPress={sendAuthCode}
+                disabled={(emailSent && timer > 0) || authVerified} // 인증 완료 후 비활성화
+              >
+                <Text style={styles.buttonText}>
+                  {emailSent ? '재전송' : '인증 요청'}
+                </Text>
               </TouchableOpacity>
-              {sendStatus !== '' && (
-                <Text
-                  style={{ marginLeft: 10, fontFamily: 'Jua', color: 'red' }}
-                >
-                  {sendStatus} {authVerified && '인증 완료'}
+
+              {/* 2. 타이머 및 상태 메시지 */}
+              {(emailSent || sendStatus) && !authVerified && (
+                <Text style={styles.timerText}>
+                  {timer > 0 ? formatTime(timer) : sendStatus}
                 </Text>
               )}
             </View>
+
+            {/* 3. 인증 확인 버튼 */}
+            {emailSent && !authVerified && (
+              <View style={styles.row}>
+                <TouchableOpacity
+                  style={[styles.button, { marginTop: 10, marginRight: 10 }]}
+                  onPress={verifyAuthCode}
+                  disabled={timer === 0} // 타이머 만료 시 인증 확인도 비활성화
+                >
+                  <Text style={styles.buttonText}>인증 확인</Text>
+                </TouchableOpacity>
+
+                <Text
+                  style={{ marginLeft: 10, fontFamily: 'Jua', color: 'gray' }}
+                >
+                  메일 확인 후 버튼을 눌러주세요.
+                </Text>
+              </View>
+            )}
+
+            {authVerified && (
+              <Text
+                style={{ marginTop: 10, fontFamily: 'Jua', color: 'green' }}
+              >
+                ✅ 인증 완료
+              </Text>
+            )}
           </View>
 
+          {/* ---------------------------------------------------- */}
+          {/* 아이디 생성 섹션 */}
+          {/* ---------------------------------------------------- */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>아이디 생성</Text>
             <TextInput
@@ -219,15 +360,19 @@ export default function ParentSignUp() {
               style={styles.input}
               value={userId}
               onChangeText={setUserId}
-              editable={authVerified}
+              editable={authVerified && !idChecked}
               autoCapitalize="none"
               placeholderTextColor="#aaa"
             />
             <View style={styles.row}>
               <TouchableOpacity
-                style={[styles.button, !authVerified && styles.buttonDisabled]}
+                style={[
+                  styles.button,
+                  (!authVerified || idChecked || userId.length < 4) &&
+                    styles.buttonDisabled, // 아이디 4자 미만 시 비활성화 추가
+                ]}
                 onPress={checkIdDuplication}
-                disabled={!authVerified}
+                disabled={!authVerified || idChecked || userId.length < 4}
               >
                 <Text style={styles.buttonText}>중복 체크</Text>
               </TouchableOpacity>
@@ -245,8 +390,12 @@ export default function ParentSignUp() {
             </View>
           </View>
 
+          {/* ---------------------------------------------------- */}
+          {/* 비밀번호 생성 섹션 */}
+          {/* ---------------------------------------------------- */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>비밀번호 생성</Text>
+            {/* ... (비밀번호 및 재입력 필드 유지) ... */}
             <View style={styles.passwordInputContainer}>
               <TextInput
                 placeholder="비밀번호"
@@ -268,6 +417,7 @@ export default function ParentSignUp() {
               </TouchableOpacity>
             </View>
 
+            {/* 비밀번호 조건 */}
             <View style={{ margin: 10 }}>
               <Text
                 style={{
@@ -296,10 +446,12 @@ export default function ParentSignUp() {
                   fontSize: 14,
                 }}
               >
-                특수문자 포함 {/[^A-Za-z0-9]/.test(password) ? 'O' : 'X'}
+                특수문자 포함{' '}
+                {/[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'O' : 'X'}
               </Text>
             </View>
 
+            {/* 비밀번호 재입력 */}
             <View style={styles.passwordInputContainer}>
               <TextInput
                 placeholder="비밀번호 재입력"
@@ -323,7 +475,8 @@ export default function ParentSignUp() {
               </TouchableOpacity>
             </View>
 
-            {!passwordMatch && (
+            {/* 비밀번호 일치 여부 */}
+            {!passwordMatch && passwordConfirm.length > 0 && (
               <Text
                 style={{
                   color: 'red',
@@ -335,20 +488,23 @@ export default function ParentSignUp() {
                 비밀번호가 일치하지 않습니다.
               </Text>
             )}
-            {passwordMatch && password.length > 0 && (
-              <Text
-                style={{
-                  color: 'green',
-                  marginLeft: 10,
-                  marginTop: 10,
-                  fontFamily: 'Jua',
-                }}
-              >
-                동일함
-              </Text>
-            )}
+            {passwordMatch &&
+              password.length > 0 &&
+              passwordConfirm.length > 0 && (
+                <Text
+                  style={{
+                    color: 'green',
+                    marginLeft: 10,
+                    marginTop: 10,
+                    fontFamily: 'Jua',
+                  }}
+                >
+                  동일함
+                </Text>
+              )}
           </View>
 
+          {/* 최종 가입하기 버튼 */}
           <TouchableOpacity
             style={[styles.signUpButton, !canSignUp && styles.buttonDisabled]}
             disabled={!canSignUp}
