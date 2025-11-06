@@ -283,9 +283,6 @@ export default function ParentSignUp() {
             <Text style={styles.logoLight}>ate</Text>
           </Text>
 
-          {/* ---------------------------------------------------- */}
-          {/* 이메일 인증 섹션 */}
-          {/* ---------------------------------------------------- */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>이메일 생성</Text>
             <TextInput
@@ -300,7 +297,6 @@ export default function ParentSignUp() {
             />
 
             <View style={styles.row}>
-              {/* 1. 이메일 인증/재전송 버튼 */}
               <TouchableOpacity
                 style={[
                   styles.button,
@@ -314,16 +310,14 @@ export default function ParentSignUp() {
                 </Text>
               </TouchableOpacity>
 
-              {/* 2. 타이머 및 상태 메시지 */}
-              {(emailSent || sendStatus) && !authVerified && (
+              {(emailSent || sendStatus) && !authVerified ? (
                 <Text style={styles.timerText}>
                   {timer > 0 ? formatTime(timer) : sendStatus}
                 </Text>
-              )}
+              ) : null}
             </View>
 
-            {/* 3. 인증 확인 버튼 */}
-            {emailSent && !authVerified && (
+            {emailSent && !authVerified ? (
               <View style={styles.row}>
                 <TouchableOpacity
                   style={[styles.button, { marginTop: 10, marginRight: 10 }]}
@@ -339,20 +333,17 @@ export default function ParentSignUp() {
                   메일 확인 후 버튼을 눌러주세요.
                 </Text>
               </View>
-            )}
+            ) : null}
 
-            {authVerified && (
+            {authVerified ? (
               <Text
                 style={{ marginTop: 10, fontFamily: 'Jua', color: 'green' }}
               >
                 ✅ 인증 완료
               </Text>
-            )}
+            ) : null}
           </View>
 
-          {/* ---------------------------------------------------- */}
-          {/* 아이디 생성 섹션 */}
-          {/* ---------------------------------------------------- */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>아이디 생성</Text>
             <TextInput
@@ -376,7 +367,7 @@ export default function ParentSignUp() {
               >
                 <Text style={styles.buttonText}>중복 체크</Text>
               </TouchableOpacity>
-              {idChecked && (
+              {idChecked ? (
                 <Text
                   style={{
                     marginLeft: 10,
@@ -386,16 +377,23 @@ export default function ParentSignUp() {
                 >
                   {idAvailable ? '중복 없음' : '중복'}
                 </Text>
-              )}
+              ) : null}
+              {idChecked ? (
+                <Text
+                  style={{
+                    marginLeft: 10,
+                    color: idAvailable ? 'green' : 'red',
+                    fontFamily: 'Jua',
+                  }}
+                >
+                  {idAvailable ? '중복 없음' : '중복'}
+                </Text>
+              ) : null}
             </View>
           </View>
 
-          {/* ---------------------------------------------------- */}
-          {/* 비밀번호 생성 섹션 */}
-          {/* ---------------------------------------------------- */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>비밀번호 생성</Text>
-            {/* ... (비밀번호 및 재입력 필드 유지) ... */}
             <View style={styles.passwordInputContainer}>
               <TextInput
                 placeholder="비밀번호"
@@ -417,7 +415,6 @@ export default function ParentSignUp() {
               </TouchableOpacity>
             </View>
 
-            {/* 비밀번호 조건 */}
             <View style={{ margin: 10 }}>
               <Text
                 style={{
@@ -451,7 +448,6 @@ export default function ParentSignUp() {
               </Text>
             </View>
 
-            {/* 비밀번호 재입력 */}
             <View style={styles.passwordInputContainer}>
               <TextInput
                 placeholder="비밀번호 재입력"
@@ -475,8 +471,7 @@ export default function ParentSignUp() {
               </TouchableOpacity>
             </View>
 
-            {/* 비밀번호 일치 여부 */}
-            {!passwordMatch && passwordConfirm.length > 0 && (
+            {!passwordMatch && passwordConfirm.length > 0 ? (
               <Text
                 style={{
                   color: 'red',
@@ -487,24 +482,23 @@ export default function ParentSignUp() {
               >
                 비밀번호가 일치하지 않습니다.
               </Text>
-            )}
+            ) : null}
             {passwordMatch &&
-              password.length > 0 &&
-              passwordConfirm.length > 0 && (
-                <Text
-                  style={{
-                    color: 'green',
-                    marginLeft: 10,
-                    marginTop: 10,
-                    fontFamily: 'Jua',
-                  }}
-                >
-                  동일함
-                </Text>
-              )}
+            password.length > 0 &&
+            passwordConfirm.length > 0 ? (
+              <Text
+                style={{
+                  color: 'green',
+                  marginLeft: 10,
+                  marginTop: 10,
+                  fontFamily: 'Jua',
+                }}
+              >
+                동일함
+              </Text>
+            ) : null}
           </View>
 
-          {/* 최종 가입하기 버튼 */}
           <TouchableOpacity
             style={[styles.signUpButton, !canSignUp && styles.buttonDisabled]}
             disabled={!canSignUp}

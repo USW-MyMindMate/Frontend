@@ -25,7 +25,7 @@ export default function ChildLoginScreen() {
 
     try {
       // ✅ 1. POST /child-login API 호출 (Postman 명세)
-      const response = await fetch(`${BASE_URL}/child-login`, {
+      const response = await fetch(`${BASE_URL}/user/child-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: childId }), // Postman 명세에 따라 userId 사용

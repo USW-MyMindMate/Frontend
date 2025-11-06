@@ -130,12 +130,14 @@ export default function ChildHomeScreen() {
         //'X-User-Id': childUserId,
       };
 
+      const childAccount = await AsyncStorage.getItem('CHILD_USER_ID');
+
       const response = await fetch(`${BASE_URL}/api/moods`, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
           // Body에는 userId (Postman 명세)
-          userId: parseInt(childUserId),
+          account: childAccount,
           reason: emotionReason,
           moodTypeName: moodTypeName,
         }),

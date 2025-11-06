@@ -607,7 +607,7 @@ export default function ParentHome() {
         {routineStats && (
           <View style={styles.statsRow}>
             <Text style={styles.statsText}>
-                            완료율: {/* ✅ 볼드 처리를 위한 Text 중첩 */}       
+              완료율:
               <Text style={{ fontFamily: 'Jua', fontWeight: 'bold' }}>
                 {routineStats.completionRate}%
               </Text>
@@ -669,10 +669,9 @@ export default function ParentHome() {
               {moodHistory.map((item, index) => (
                 <View key={index} style={styles.historyItemRow}>
                   <Text style={styles.historyDate}>
-                                        {item.recordedAt.substring(0, 16)}     
+                    {item.recordedAt.substring(0, 16)}     
                   </Text>
                   <Text style={styles.historyMood}>
-                    {/* ✅ 볼드 처리를 위한 Text 중첩 */}
                     <Text style={{ fontFamily: 'Jua', fontWeight: 'bold' }}>
                       {item.moodTypeName}
                     </Text>
@@ -683,10 +682,9 @@ export default function ParentHome() {
             </ScrollView>
           ) : (
             <Text style={styles.loadingText}>
-                            기록된 감정 히스토리가 없습니다.            {' '}
+              기록된 감정 히스토리가 없습니다.
             </Text>
           )}
-                 {' '}
         </View>
 
         <TouchableOpacity
