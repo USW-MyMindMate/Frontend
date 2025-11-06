@@ -604,7 +604,7 @@ export default function ParentHome() {
           <Text style={styles.routineTitle}>{`'s routine`}</Text>
         </View>
 
-        {routineStats && (
+        {routineStats ? (
           <View style={styles.statsRow}>
             <Text style={styles.statsText}>
               완료율:
@@ -614,7 +614,7 @@ export default function ParentHome() {
               ({routineStats.completedRoutines}/{routineStats.totalRoutines})  
             </Text>
           </View>
-        )}
+        ) : null}
 
         {loading ? (
           <Text style={styles.loadingText}>루틴을 불러오는 중...</Text>
