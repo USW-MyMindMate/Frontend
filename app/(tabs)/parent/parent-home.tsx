@@ -81,38 +81,85 @@ export default function ParentHome() {
     };
   }, [router]);
 
-  // 자녀 목록 조회 및 상태 초기화 함수 (ParentMyPage와 동일한 API 사용)
-  const fetchChildren = useCallback(async () => {
-    try {
-      const headers = await getAuthHeaders();
-      if (!headers) return;
+  //여기 수정했어용~~
+  // ✅ 자녀 목록 조회 및 상태 초기화 함수 (ParentMyPage와 동일한 API 사용)
+    const fetchChildren = useCallback(async () => {
+      try {
+        const headers = await getAuthHeaders();
+        if (!headers) return;
 
-      const response = await fetch(`${BASE_URL}/user/find-ChildByParent`, {
+    // ✅ 부모 계정 가져오기 (AsyncStorage 키 이름은 로그인 시 사용한 것과 통일)
+        const parentAccount = await AsyncStorage.getItem('PARENT_USER_ID');
+        if (!parentAccount) {
+          return Alert.alert('에러', '로그인 정보가 없습니다.');
+        }
+
+    // ✅ GET 요청으로 수정 (쿼리 파라미터 방식)
+    const response = await fetch(
+      `${BASE_URL}/user/find-ChildByParent?account=${parentAccount}`,
+      {
         method: 'GET',
         headers: headers,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        setChildren(data);
-
-        if (data.length > 0) {
-          // 첫 번째 자녀를 기본 선택
-          setSelectedChild(data[0]);
-          setSelectedChildIndex(0);
-        } else {
-          setSelectedChild(null);
-          Alert.alert('알림', '등록된 자녀 정보가 없습니다.');
-        }
-      } else {
-        Alert.alert('오류', '자녀 목록을 불러오는 데 실패했습니다.');
       }
-    } catch (err) {
-      console.error('자녀 목록 조회 오류:', err);
-      Alert.alert('에러', '네트워크 오류가 발생했습니다.');
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+
+      setChildren(data);
+
+      if (data.length > 0) {
+        setSelectedChild(data[0]);
+        setSelectedChildIndex(0);
+      } else {
+        setSelectedChild(null);
+        Alert.alert('알림', '등록된 자녀 정보가 없습니다.');
+      }
+    } else {
+      Alert.alert('오류', '자녀 목록을 불러오는 데 실패했습니다.');
     }
-  }, [router, getAuthHeaders]);
+  } catch (err) {
+    console.error('자녀 목록 조회 오류:', err);
+    Alert.alert('에러', '네트워크 오류가 발생했습니다.');
+  }
+}, []);
+
+
+  // // 자녀 목록 조회 및 상태 초기화 함수 (ParentMyPage와 동일한 API 사용)
+  // const fetchChildren = useCallback(async () => {
+  //   try {
+  //     const headers = await getAuthHeaders();
+  //     if (!headers) return;
+
+  //     const parentAccount = await AsyncStorage.getItem('PARENT_ACCOUNT');
+
+  //     const response = await fetch(`${BASE_URL}/user/find-ChildByParent`, {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ parentAccount }), // ✅ Postman 명세에 맞게 body로 보냄
+  //     });
+
+  //     if (response.ok) {
+  //       const data = await response.json();
+
+  //       setChildren(data);
+
+  //       if (data.length > 0) {
+  //         // 첫 번째 자녀를 기본 선택
+  //         setSelectedChild(data[0]);
+  //         setSelectedChildIndex(0);
+  //       } else {
+  //         setSelectedChild(null);
+  //         Alert.alert('알림', '등록된 자녀 정보가 없습니다.');
+  //       }
+  //     } else {
+  //       Alert.alert('오류', '자녀 목록을 불러오는 데 실패했습니다.');
+  //     }
+  //   } catch (err) {
+  //     console.error('자녀 목록 조회 오류:', err);
+  //     Alert.alert('에러', '네트워크 오류가 발생했습니다.');
+  //   }
+  // }, [router, getAuthHeaders]);
 
   // 컴포넌트 마운트 시 자녀 목록 조회
   useEffect(() => {
@@ -187,9 +234,19 @@ export default function ParentHome() {
       const headers = await getAuthHeaders();
       if (!headers) throw new Error('인증 정보 없음');
 
+      // ✅ ① selectedChild.account 값 검증 추가
+      if (!selectedChild || !selectedChild.account) {
+        console.warn('⚠️ 선택된 자녀의 account 정보가 없습니다.');
+        setError('자녀 정보를 불러올 수 없습니다.');
+        return;
+      }
+
+      // ✅ ② 디버깅용 로그
+      console.log('📡 대시보드 요청 account:', selectedChild.account);
+
       // 엔드포인트: /api/dashboard/user?account=childuser
-      const accountId = selectedChild.userId;
-      const url = `${BASE_URL}/api/dashboard/user?account=${accountId}`;
+      const accountName = selectedChild.account;
+      const url = `${BASE_URL}/api/dashboard/user?account=${accountName}`;
 
       const response = await fetch(url, { method: 'GET', headers: headers });
 

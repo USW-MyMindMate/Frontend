@@ -36,6 +36,7 @@ export default function ChildLoginScreen() {
       if (response.ok) {
         // ✅ 2. 로그인 성공 시 아이디 저장 키 통일
         await AsyncStorage.setItem('CHILD_USER_ID', childId);
+        await AsyncStorage.setItem('CHILD_ACCOUNT', childId);
 
         Alert.alert('로그인 성공', data.message || '로그인이 완료되었습니다.');
         router.push('/child/child-home');

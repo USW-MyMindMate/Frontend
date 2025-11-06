@@ -70,7 +70,8 @@ export default function ChildHomeScreen() {
       }
 
       // 🚨 가정: 아이의 루틴 목록을 조회하는 API 엔드포인트
-      const url = `${BASE_URL}/api/routines?userId=${childUserId}`;
+      const childAccount = await AsyncStorage.getItem('CHILD_ACCOUNT');
+      const url = `${BASE_URL}/api/routines?account=${childAccount}`;
 
       const response = await fetch(url, { method: 'GET' });
 

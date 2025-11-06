@@ -54,39 +54,82 @@ export default function ParentMyPage() {
 
   const [duplicationChecked, setDuplicationChecked] = useState(false);
 
-  // ✅ [추가] 자녀 목록 조회 함수
-  const fetchChildren = useCallback(async () => {
-    const headers = await getAuthHeaders();
-    if (!headers) return;
+  //여기 수정했어용~~
+  // ✅ [수정 완료] 자녀 목록 조회 함수
+      const fetchChildren = useCallback(async () => {
+        const headers = await getAuthHeaders();
+        if (!headers) return;
 
-    try {
-      // Postman 명세: GET /child/parent
-      const response = await fetch(`${BASE_URL}/user/find-ChildByParent`, {
-        method: 'GET',
-        headers: headers,
-      });
+        try {
+          // ✅ 부모 계정 가져오기 (AsyncStorage에서)
+          const parentAccount = await AsyncStorage.getItem('PARENT_USER_ID');
+          if (!parentAccount) {
+            return Alert.alert('에러', '로그인 정보가 없습니다.');
+          }
 
-      if (response.ok) {
-        const data = await response.json();
-        setChildren(data); // 로컬 상태 업데이트
+    // ✅ GET 요청 시 쿼리 파라미터로 account 포함
+          const response = await fetch(
+            `${BASE_URL}/user/find-ChildByParent?account=${parentAccount}`, // ★ 핵심 수정
+            {
+              method: 'GET',
+              headers: headers,
+            }
+          );
 
-        if (data.length > 0) {
-          // 자녀가 있다면 첫 번째 자녀를 기본 선택하고 폼에 데이터를 채움
-          setSelectedChildIndex(0);
-          setForm(data[0]);
-          setMode('view'); // 조회 모드로 시작
-        } else {
-          // 자녀가 없으면 생성 모드로 자동 전환
-          setMode('create');
+          if (response.ok) {
+            const data = await response.json();
+            setChildren(data); // 로컬 상태 업데이트
+
+            if (data.length > 0) {
+              setSelectedChildIndex(0);
+              setForm(data[0]);
+              setMode('view');
+            } else {
+              setMode('create');
+            }
+          } else {
+            Alert.alert('오류', '자녀 목록을 불러오는 데 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('자녀 목록 조회 오류:', error);
+          Alert.alert('에러', '네트워크 오류가 발생했습니다.');
         }
-      } else {
-        Alert.alert('오류', '자녀 목록을 불러오는 데 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('자녀 목록 조회 오류:', error);
-      Alert.alert('에러', '네트워크 오류가 발생했습니다.');
-    }
-  }, []);
+      }, []);
+
+
+  // // ✅ [추가] 자녀 목록 조회 함수
+  // const fetchChildren = useCallback(async () => {
+  //   const headers = await getAuthHeaders();
+  //   if (!headers) return;
+
+  //   try {
+  //     // Postman 명세: GET /child/parent
+  //     const response = await fetch(`${BASE_URL}/user/find-ChildByParent`, {
+  //       method: 'GET',
+  //       headers: headers,
+  //     });
+
+  //     if (response.ok) {
+  //       const data = await response.json();
+  //       setChildren(data); // 로컬 상태 업데이트
+
+  //       if (data.length > 0) {
+  //         // 자녀가 있다면 첫 번째 자녀를 기본 선택하고 폼에 데이터를 채움
+  //         setSelectedChildIndex(0);
+  //         setForm(data[0]);
+  //         setMode('view'); // 조회 모드로 시작
+  //       } else {
+  //         // 자녀가 없으면 생성 모드로 자동 전환
+  //         setMode('create');
+  //       }
+  //     } else {
+  //       Alert.alert('오류', '자녀 목록을 불러오는 데 실패했습니다.');
+  //     }
+  //   } catch (error) {
+  //     console.error('자녀 목록 조회 오류:', error);
+  //     Alert.alert('에러', '네트워크 오류가 발생했습니다.');
+  //   }
+  // }, []);
 
   // ✅ [추가] 컴포넌트 마운트 시 자녀 목록 조회
   useEffect(() => {
@@ -109,6 +152,17 @@ export default function ParentMyPage() {
     if (!headers) return; // 인증 실패 시 중단
 
     try {
+          // ✅ AsyncStorage에서 부모 계정(account) 불러오기
+      const parentAccount = await AsyncStorage.getItem('PARENT_USER_ID');
+      console.log('📦 AsyncStorage에서 읽은 parentAccount:', parentAccount);
+      if (!parentAccount) {
+        return Alert.alert('에러', '로그인 정보가 없습니다.');
+      }
+      const requestBody = {
+        parent_Account: parentAccount, // 로그인 때 저장한 부모 account
+        child_Account: form.uniqueId,  // 사용자가 입력한 자녀 ID
+        birthdate: `${form.birthYear}-${form.birthMonth}-${form.birthDay}`, // YYYY-MM-DD 형식
+      };
       // Postman 명세: POST /child
       const response = await fetch(`${BASE_URL}/user/child-profile`, {
         method: 'POST',
