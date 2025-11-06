@@ -467,9 +467,24 @@ export default function ParentHome() {
     };
     setTempRoutineList([...tempRoutineList, newRoutine]);
   };
-  const updateRoutine = (index: number, value: string) => {
+  // ✅ 루틴 제목 업데이트 함수 (기존)
+  const updateRoutineTitle = (index: number, value: string) => {
     const updated = [...tempRoutineList];
     updated[index] = { ...updated[index], title: value };
+    setTempRoutineList(updated);
+  };
+
+  // ✅ 루틴 시간 업데이트 함수 (추가)
+  const updateRoutineTime = (index: number, value: string) => {
+    const updated = [...tempRoutineList];
+    updated[index] = { ...updated[index], time: value };
+    setTempRoutineList(updated);
+  };
+
+  // ✅ 루틴 요일 업데이트 함수 (추가)
+  const updateRoutineDay = (index: number, value: string) => {
+    const updated = [...tempRoutineList];
+    updated[index] = { ...updated[index], dayOfWeek: value };
     setTempRoutineList(updated);
   };
 
@@ -496,7 +511,6 @@ export default function ParentHome() {
           <Text style={styles.logoHighlight}>M</Text>
           <Text style={styles.logoLight}>ate</Text>
         </Text>
-
         <View style={styles.editBox}>
           <View style={styles.routineHeader}>
             <CustomDropdown
@@ -504,31 +518,54 @@ export default function ParentHome() {
               selectedIndex={selectedChildIndex}
               onSelect={(index) => {
                 setSelectedChildIndex(index);
-                // 드롭다운 변경 시 tempRoutineList도 다시 로드해야 하지만,
-                // 현재는 임시로 index만 바꿈
               }}
             />
             <Text style={styles.routineTitle}>{`'s routine`}</Text> 
           </View>
-          {/* ✅ [수정] 스크롤 뷰를 사용하여 tempRoutineList 렌더링 */}
+
+          <View style={styles.editListHeader}>
+            <Text style={[styles.editHeaderCol, styles.editHeaderTime]}>
+              시간
+            </Text>
+            <Text style={[styles.editHeaderCol, styles.editHeaderDay]}>
+              요일
+            </Text>
+            <Text style={[styles.editHeaderCol, styles.editHeaderTitle]}>
+              루틴 내용
+            </Text>
+          </View>
+
           <ScrollView style={styles.editRoutineScroll}>
             {tempRoutineList.map((item, index) => (
               <View key={item.id || index} style={styles.editRoutineRow}>
                 <TextInput
-                  style={styles.editInputBox}
-                  value={item.title}
-                  onChangeText={(text) => updateRoutine(index, text)}
+                  style={[styles.editInputBox, styles.editTimeInput]}
+                  value={item.time}
+                  onChangeText={(text) => updateRoutineTime(index, text)}
+                  placeholder="00:00"
                 />
-                {/* 🚨 [주의] 루틴 ID, Time, DayOfWeek 필드는 현재 편집 UI에 빠져있음 */}
+                <TextInput
+                  style={[styles.editInputBox, styles.editDayInput]}
+                  value={item.dayOfWeek}
+                  onChangeText={(text) => updateRoutineDay(index, text)}
+                  placeholder="MON,WED"
+                />
+                <TextInput
+                  style={[styles.editInputBox, styles.editTitleInput]}
+                  value={item.title}
+                  onChangeText={(text) => updateRoutineTitle(index, text)}
+                  placeholder="루틴 제목"
+                />
                 <TouchableOpacity
                   onPress={() => removeRoutine(index)}
                   style={styles.removeButton}
                 >
-                  <Text style={styles.removeText}>X</Text>   
+                  <Text style={styles.removeText}>X</Text>
                 </TouchableOpacity>
               </View>
             ))}
           </ScrollView>
+
           <TouchableOpacity onPress={addRoutine} style={styles.addButton}>
             <Text style={styles.addText}>+</Text>
           </TouchableOpacity>
@@ -570,8 +607,11 @@ export default function ParentHome() {
         {routineStats && (
           <View style={styles.statsRow}>
             <Text style={styles.statsText}>
-              완료율: **{routineStats.completionRate}%** (
-              {routineStats.completedRoutines}/{routineStats.totalRoutines})
+                            완료율: {/* ✅ 볼드 처리를 위한 Text 중첩 */}       
+              <Text style={{ fontFamily: 'Jua', fontWeight: 'bold' }}>
+                {routineStats.completionRate}%
+              </Text>
+              ({routineStats.completedRoutines}/{routineStats.totalRoutines})  
             </Text>
           </View>
         )}
@@ -629,19 +669,24 @@ export default function ParentHome() {
               {moodHistory.map((item, index) => (
                 <View key={index} style={styles.historyItemRow}>
                   <Text style={styles.historyDate}>
-                    {item.recordedAt.substring(0, 16)}
+                                        {item.recordedAt.substring(0, 16)}     
                   </Text>
                   <Text style={styles.historyMood}>
-                    **{item.moodTypeName}**: {item.reason}
+                    {/* ✅ 볼드 처리를 위한 Text 중첩 */}
+                    <Text style={{ fontFamily: 'Jua', fontWeight: 'bold' }}>
+                      {item.moodTypeName}
+                    </Text>
+                    {`: ${item.reason}`} 
                   </Text>
                 </View>
               ))}
             </ScrollView>
           ) : (
             <Text style={styles.loadingText}>
-              기록된 감정 히스토리가 없습니다.
+                            기록된 감정 히스토리가 없습니다.            {' '}
             </Text>
           )}
+                 {' '}
         </View>
 
         <TouchableOpacity
@@ -654,7 +699,7 @@ export default function ParentHome() {
 
       <Modal
         transparent={true}
-        visible={showStatsModal} // ✅ 모달 이름 변경
+        visible={showStatsModal}
         animationType="slide"
         onRequestClose={() => setShowStatsModal(false)}
       >
@@ -927,12 +972,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Jua',
   },
   removeButton: {
-    marginLeft: 10,
+    marginLeft: 5,
     backgroundColor: '#ffaaaa',
-    padding: 8,
-    borderRadius: 8,
+    padding: 5,
+    borderRadius: 6,
+    height: 35,
+    justifyContent: 'center',
   },
-  removeText: { color: '#fff', fontWeight: 'bold' },
+  removeText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   addButton: {
     backgroundColor: '#ffd699',
     padding: 10,
@@ -946,17 +993,18 @@ const styles = StyleSheet.create({
   editRoutineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 8,
   },
   editInputBox: {
-    flex: 1,
     backgroundColor: '#fff',
     borderColor: '#ccc',
     borderWidth: 1,
-    padding: 10,
-    borderRadius: 8,
+    padding: 6,
+    borderRadius: 6,
     fontFamily: 'Jua',
-    color: '#555',
+    fontSize: 14,
+    marginRight: 5,
+    height: 35,
   },
   editBox: {
     backgroundColor: '#fff3eb',
@@ -990,5 +1038,42 @@ const styles = StyleSheet.create({
     maxHeight: 300,
     marginBottom: 10,
     paddingVertical: 5,
+  },
+  editListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffdbb7',
+    paddingHorizontal: 5,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 5,
+  },
+  editHeaderCol: {
+    fontFamily: 'Jua',
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+  },
+  editHeaderTime: {
+    width: 50,
+  },
+  editHeaderDay: {
+    width: 80,
+  },
+  editHeaderTitle: {
+    flex: 1,
+    textAlign: 'left',
+    paddingLeft: 10,
+  },
+  editTimeInput: {
+    width: 50,
+    textAlign: 'center',
+  },
+  editDayInput: {
+    width: 80,
+    textAlign: 'center',
+  },
+  editTitleInput: {
+    flex: 1, // 루틴 내용을 가장 넓게
   },
 });
